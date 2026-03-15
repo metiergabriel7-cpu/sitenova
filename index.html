@@ -3025,15 +3025,15 @@ async function sendFriendReq(uid, name, btn) {
       displayName: me.displayName,
       username: me.username || '',
       email: me.email || '',
-      sentAt: serverTimestamp(),
+      sentAt: Date.now(), // ← pas de serverTimestamp dans arrayUnion
     };
 
-    // Ajouter dans friendRequests de la cible (avec infos complètes)
+    // Ajouter dans friendRequests de la cible
     await updateDoc(doc(fb.db, 'users', uid), {
       friendRequests: arrayUnion(reqData)
     });
 
-    // Créer une notification séparée pour un push en temps réel
+    // Créer une notification séparée
     await setDoc(doc(fb.db, 'notifications', `${uid}_fr_${me.uid}`), {
       type: 'friendRequest',
       toUid: uid,
