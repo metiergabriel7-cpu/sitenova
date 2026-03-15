@@ -3013,27 +3013,20 @@ async function sendFriendReq(uid, name, btn) {
         if(btn){btn.textContent='Amis ✓';btn.className='btn-done-sm';}
         toast('Vous êtes déjà amis', 'inf'); return;
       }
-      if ((d.friendRequests||[]).some(r => r.uid === me.uid || r === me.uid)) {
+      const reqs = d.friendRequests || [];
+      const alreadySent = reqs.some(r => r === me.uid || (typeof r === 'object' && r.uid === me.uid));
+      if (alreadySent) {
         if(btn){btn.textContent='Demande envoyée ✓';btn.className='btn-done-sm';}
         toast('Demande déjà envoyée', 'inf'); return;
       }
     }
 
-    // Stocker la demande avec les infos complètes de l'expéditeur
-    const reqData = {
-      uid: me.uid,
-      displayName: me.displayName,
-      username: me.username || '',
-      email: me.email || '',
-      sentAt: Date.now(), // ← pas de serverTimestamp dans arrayUnion
-    };
-
-    // Ajouter dans friendRequests de la cible
+    // Stocker juste l'UID dans friendRequests (pas d'objet = pas d'erreur)
     await updateDoc(doc(fb.db, 'users', uid), {
-      friendRequests: arrayUnion(reqData)
+      friendRequests: arrayUnion(me.uid)
     });
 
-    // Créer une notification séparée
+    // Notification séparée avec les infos complètes
     await setDoc(doc(fb.db, 'notifications', `${uid}_fr_${me.uid}`), {
       type: 'friendRequest',
       toUid: uid,
