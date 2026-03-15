@@ -3023,18 +3023,15 @@ async function sendFriendReq(uid, name, btn) {
 
     // Stocker juste l'UID dans friendRequests (pas d'objet = pas d'erreur)
     await updateDoc(doc(fb.db, 'users', uid), {
-      friendRequests: arrayUnion(String(me.uid))
-toUid: String(uid),
-fromUid: String(me.uid),
-fromName: String(me.displayName || ''),
+      friendRequests: arrayUnion(me.uid)
     });
 
     // Notification séparée avec les infos complètes
     await setDoc(doc(fb.db, 'notifications', `${uid}_fr_${me.uid}`), {
       type: 'friendRequest',
-      toUid: String(uid),
-      fromUid: String(me.uid),
-      fromName: String(me.displayName || ''),
+      toUid: uid,
+      fromUid: me.uid,
+      fromName: me.displayName,
       fromUsername: me.username || '',
       createdAt: serverTimestamp(),
       read: false,
@@ -3249,7 +3246,7 @@ async function acceptFriend(uid, name, username, btn) {
     }
 
     await updateDoc(doc(fb.db, 'users', uid), {
-      friends: arrayUnion(String(me.uid)),
+      friends: arrayUnion(me.uid),
     });
 
     // Supprimer la notification
