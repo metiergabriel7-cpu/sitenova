@@ -2236,11 +2236,13 @@ async function loadConversations() {
       convItems.push({ other, last, unread });
     });
 
-    // 2. Amis sans conversation — les ajouter quand même
-    friendIds.forEach(fid => {
+    // 2. Amis sans conversation — combiner myFriendIds ET friends du profil
+    const allFriendIds = [...new Set([...friendIds, ...myFriendIds])];
+    allFriendIds.forEach(fid => {
       if (seen.has(fid)) return;
       const friend = users.find(u => u.uid === fid);
       if (!friend) return;
+      seen.add(fid);
       convItems.push({ other: friend, last: null, unread: 0 });
     });
 
@@ -2637,31 +2639,43 @@ function startLocalTypingPoll(cid) {
 
 let unsubTyping = null;
 async function subscribeTyping(cid) {
+  if (unsubTyping) { try { unsubTyping(); } catch(_) {} unsubTyping = null; }
+  if (_typingPollInterval) { clearInterval(_typingPollInterval); _typingPollInterval = null; }
+
   if (!fb?.db) {
     startLocalTypingPoll(cid);
     return;
   }
-  if (unsubTyping) { unsubTyping(); unsubTyping = null; }
   try {
     const { doc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
     unsubTyping = onSnapshot(doc(fb.db, 'typing', cid), snap => {
-      if (!snap.exists() || !otherUser) { showTyping(false); return; }
+      if (!snap.exists()) { showTyping(false); return; }
       const data = snap.data();
-      const isTyping = data[otherUser.uid] === true;
-      // Vérifier aussi le timestamp pour éviter les faux positifs
-      const ts = data[`${otherUser.uid}_ts`];
-      const fresh = ts && (Date.now() - ts) < 4000;
-      showTyping(isTyping && fresh !== false);
+      const uid = otherUser?.uid;
+      if (!uid) { showTyping(false); return; }
+      const isTyping = data[uid] === true;
+      const ts = data[`${uid}_ts`];
+      // Considérer comme "en train d'écrire" si flag true ET timestamp récent (< 5s)
+      const fresh = !ts || (Date.now() - ts) < 5000;
+      showTyping(isTyping && fresh);
     });
-  } catch(_) {}
+  } catch(e) {
+    // Fallback sur poll local si Firebase typing échoue
+    startLocalTypingPoll(cid);
+  }
 }
 
 function showTyping(on) {
   const el = document.getElementById('ch-typing');
   const st = document.getElementById('ch-status');
   if (!el || !st) return;
-  if (on) { el.style.display='block'; st.style.display='none'; }
-  else    { el.style.display='none';  st.style.display='block'; }
+  if (on) {
+    el.style.display = 'flex';
+    st.style.display = 'none';
+  } else {
+    el.style.display = 'none';
+    st.style.display = 'block';
+  }
 }
 
 function clearTypingIndicator() {
@@ -2690,20 +2704,17 @@ function growTa(el) {
   const count = el.value.length;
   const cc = document.getElementById('char-count');
   if (cc) {
-    if (count === 0) {
-      cc.textContent = '';
-    } else {
-      cc.textContent = count;
-      cc.style.color = count > 800 ? 'var(--red)' : count > 500 ? 'var(--yellow)' : 'var(--t3)';
-    }
+    if (count === 0) { cc.textContent = ''; }
+    else { cc.textContent = count; cc.style.color = count > 800 ? 'var(--red)' : count > 500 ? 'var(--yellow)' : 'var(--t3)'; }
   }
-  onTyping();
+  onTyping(); // appel à chaque frappe
 }
 
 function taKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); return; }
   const ta = document.getElementById('msg-ta');
   document.getElementById('send-btn').disabled = !ta.value.trim() && !pendingFiles.length;
+  onTyping(); // déclencher à chaque touche aussi
 }
 
 function toggleEmoji() {
@@ -3749,7 +3760,16 @@ async function startCall(type) {
       _remoteStream = e.streams[0];
       const rv = document.getElementById('call-remote-video');
       rv.srcObject = _remoteStream;
-      if (type === 'video') { rv.style.display='block'; document.getElementById('call-remote-placeholder').style.display='none'; }
+      // Toujours afficher la vidéo distante (cam OU partage écran)
+      rv.style.display = 'block';
+      document.getElementById('call-remote-placeholder').style.display = 'none';
+      // Clic sur la vidéo distante = plein écran
+      rv.onclick = () => {
+        if (document.fullscreenElement) { document.exitFullscreen(); }
+        else { rv.requestFullscreen?.().catch(()=>{}); }
+      };
+      rv.style.cursor = 'pointer';
+      rv.title = 'Cliquer pour plein écran';
     };
     _pc.onicecandidate = async e => {
       if (!e.candidate) return;
@@ -3901,10 +3921,15 @@ async function acceptCall() {
       _remoteStream = e.streams[0];
       const rv = document.getElementById('call-remote-video');
       rv.srcObject = _remoteStream;
-      if (_callType === 'video') {
-        rv.style.display = 'block';
-        document.getElementById('call-remote-placeholder').style.display = 'none';
-      }
+      // Toujours afficher (cam OU partage écran)
+      rv.style.display = 'block';
+      document.getElementById('call-remote-placeholder').style.display = 'none';
+      rv.onclick = () => {
+        if (document.fullscreenElement) { document.exitFullscreen(); }
+        else { rv.requestFullscreen?.().catch(()=>{}); }
+      };
+      rv.style.cursor = 'pointer';
+      rv.title = 'Cliquer pour plein écran';
     };
     _pc.onicecandidate = async e => {
       if (!e.candidate) return;
