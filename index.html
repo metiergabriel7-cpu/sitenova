@@ -2567,15 +2567,18 @@ async function onTyping() {
 
   // ── Firebase ──
   try {
-    const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-    await setDoc(doc(fb.db, 'typing', convId), { [me.uid]:true, [`${me.uid}_ts`]:serverTimestamp() }, { merge:true });
+    const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    await setDoc(doc(fb.db, 'typing', convId), {
+      [me.uid]: true,
+      [`${me.uid}_ts`]: Date.now()
+    }, { merge:true });
   } catch(_) {}
   clearTimeout(typingTimeout);
   typingTimeout = setTimeout(async () => {
     if (!fb?.db || !convId || !me) return;
     try {
       const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-      await updateDoc(doc(fb.db, 'typing', convId), { [me.uid]:false });
+      await updateDoc(doc(fb.db, 'typing', convId), { [me.uid]: false });
     } catch(_) {}
   }, 2500);
 }
@@ -2595,19 +2598,21 @@ function startLocalTypingPoll(cid) {
 
 let unsubTyping = null;
 async function subscribeTyping(cid) {
-  // Mode local : démarrer le poll
   if (!fb?.db) {
     startLocalTypingPoll(cid);
     return;
   }
-  // Firebase : onSnapshot
   if (unsubTyping) { unsubTyping(); unsubTyping = null; }
   try {
     const { doc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
     unsubTyping = onSnapshot(doc(fb.db, 'typing', cid), snap => {
-      if (!snap.exists()) return;
+      if (!snap.exists() || !otherUser) { showTyping(false); return; }
       const data = snap.data();
-      showTyping(data[otherUser?.uid] === true);
+      const isTyping = data[otherUser.uid] === true;
+      // Vérifier aussi le timestamp pour éviter les faux positifs
+      const ts = data[`${otherUser.uid}_ts`];
+      const fresh = ts && (Date.now() - ts) < 4000;
+      showTyping(isTyping && fresh !== false);
     });
   } catch(_) {}
 }
@@ -3633,16 +3638,53 @@ const ICE_SERVERS = [
 ];
 
 function sigKey(cid, type) { return `nova_sig_${cid}_${type}`; }
-function writeSig(cid, type, data) { localStorage.setItem(sigKey(cid, type), JSON.stringify({ ...data, ts: Date.now() })); }
+
+// Écrire un signal — localStorage ou Firestore selon connexion
+async function writeSig(cid, type, data) {
+  const payload = { ...data, ts: Date.now() };
+  localStorage.setItem(sigKey(cid, type), JSON.stringify(payload));
+  if (fb?.db) {
+    try {
+      const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      await setDoc(doc(fb.db, 'calls', `${cid}_${type}`), payload);
+    } catch(_) {}
+  }
+}
+
+// Lire un signal — Firestore d'abord si disponible, sinon localStorage
+async function readSigAsync(cid, type) {
+  if (fb?.db) {
+    try {
+      const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      const snap = await getDoc(doc(fb.db, 'calls', `${cid}_${type}`));
+      if (snap.exists()) {
+        const d = snap.data();
+        if (Date.now() - d.ts > 60000) return null;
+        return d;
+      }
+    } catch(_) {}
+  }
+  return readSig(cid, type);
+}
+
 function readSig(cid, type) {
   const raw = localStorage.getItem(sigKey(cid, type));
   if (!raw) return null;
   const d = JSON.parse(raw);
-  if (Date.now() - d.ts > 30000) { localStorage.removeItem(sigKey(cid, type)); return null; }
+  if (Date.now() - d.ts > 60000) { localStorage.removeItem(sigKey(cid, type)); return null; }
   return d;
 }
-function clearSig(cid) {
+
+async function clearSig(cid) {
   ['offer','answer','caller-ice','callee-ice','status'].forEach(t => localStorage.removeItem(sigKey(cid, t)));
+  if (fb?.db) {
+    try {
+      const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      await Promise.all(['offer','answer','caller-ice','callee-ice','status'].map(t =>
+        deleteDoc(doc(fb.db, 'calls', `${cid}_${t}`)).catch(() => {})
+      ));
+    } catch(_) {}
+  }
 }
 
 async function startCall(type) {
@@ -3652,30 +3694,43 @@ async function startCall(type) {
   playSound('click');
   showCallScreen(otherUser.displayName, type);
   startRinging();
-  document.getElementById('call-status-txt').textContent = type === 'video' ? '📹 Appel vidéo...' : '📞 Appel vocal...';
+  document.getElementById('call-status-txt').textContent = type === 'video' ? '📹 Appel en cours...' : '📞 Appel en cours...';
   try {
-    _localStream = await navigator.mediaDevices.getUserMedia({ video: type === 'video' ? { facingMode: _callFacing } : false, audio: true });
+    _localStream = await navigator.mediaDevices.getUserMedia({
+      video: type === 'video' ? { facingMode: _callFacing } : false,
+      audio: true
+    });
     const lv = document.getElementById('call-local-video');
     lv.srcObject = _localStream;
     lv.style.display = type === 'video' ? 'block' : 'none';
+
     _pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     _localStream.getTracks().forEach(t => _pc.addTrack(t, _localStream));
     _pc.ontrack = e => {
       _remoteStream = e.streams[0];
       const rv = document.getElementById('call-remote-video');
       rv.srcObject = _remoteStream;
-      if (type === 'video') { rv.style.display = 'block'; document.getElementById('call-remote-placeholder').style.display = 'none'; }
+      if (type === 'video') { rv.style.display='block'; document.getElementById('call-remote-placeholder').style.display='none'; }
     };
-    _pc.onicecandidate = e => {
+    _pc.onicecandidate = async e => {
       if (!e.candidate) return;
-      const ex = readSig(_callCid, 'caller-ice') || { candidates: [] };
-      ex.candidates = [...(ex.candidates || []), e.candidate.toJSON()];
-      writeSig(_callCid, 'caller-ice', ex);
+      const ex = readSig(_callCid, 'caller-ice') || { candidates:[] };
+      ex.candidates = [...(ex.candidates||[]), e.candidate.toJSON()];
+      await writeSig(_callCid, 'caller-ice', ex);
     };
+
     const offer = await _pc.createOffer();
     await _pc.setLocalDescription(offer);
-    writeSig(_callCid, 'offer', { sdp: offer.sdp, type: offer.type, callType: type, callerUid: me.uid, callerName: me.displayName, calleeUid: otherUser.uid });
-    writeSig(_callCid, 'status', { state: 'ringing', from: me.uid });
+
+    await writeSig(_callCid, 'offer', {
+      sdp: offer.sdp,
+      type: offer.type,
+      callType: type,
+      callerUid: me.uid,
+      callerName: me.displayName,
+      calleeUid: otherUser.uid
+    });
+    await writeSig(_callCid, 'status', { state:'ringing', from:me.uid });
     startCallerPoll();
   } catch(e) { toast('Micro/Caméra : ' + e.message, 'err'); endCall(); }
 }
@@ -3684,10 +3739,10 @@ function startCallerPoll() {
   if (_callPollInterval) clearInterval(_callPollInterval);
   _callPollInterval = setInterval(async () => {
     if (!_callCid) { clearInterval(_callPollInterval); return; }
-    const status = readSig(_callCid, 'status');
+    const status = await readSigAsync(_callCid, 'status');
     if (status?.state === 'declined') { clearInterval(_callPollInterval); toast('📵 Appel refusé', 'inf'); endCall(); return; }
     if (status?.state === 'ended' && status?.from !== me?.uid) { clearInterval(_callPollInterval); endCall(); return; }
-    const answer = readSig(_callCid, 'answer');
+    const answer = await readSigAsync(_callCid, 'answer');
     if (answer && _pc && _pc.signalingState === 'have-local-offer') {
       clearInterval(_callPollInterval);
       try {
@@ -3699,14 +3754,14 @@ function startCallerPoll() {
         document.getElementById('call-status-txt').textContent = '🟢 En communication';
       } catch(e) { console.error(e); }
     }
-  }, 600);
+  }, 800);
 }
 
 function pollRemoteIce(iceKey) {
   let added = new Set();
   const iv = setInterval(async () => {
     if (!_pc || !_callCid) { clearInterval(iv); return; }
-    const d = readSig(_callCid, iceKey);
+    const d = await readSigAsync(_callCid, iceKey);
     if (!d?.candidates) return;
     for (const c of d.candidates) {
       const k = JSON.stringify(c);
@@ -3717,10 +3772,32 @@ function pollRemoteIce(iceKey) {
 }
 
 function startIncomingCallPoll() {
-  // Déjà un poll actif ?
   if (window._incomingCallInterval) return;
-  window._incomingCallInterval = setInterval(() => {
+  window._incomingCallInterval = setInterval(async () => {
     if (!me) return;
+    if (document.getElementById('call-screen').classList.contains('active')) return;
+    if (document.getElementById('call-incoming').classList.contains('active')) return;
+
+    // Firestore : chercher les offres destinées à moi
+    if (fb?.db) {
+      try {
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        const q = query(collection(fb.db, 'calls'), where('calleeUid', '==', me.uid));
+        const snap = await getDocs(q);
+        for (const d of snap.docs) {
+          const offer = d.data();
+          if (!offer.sdp) continue; // pas une offre WebRTC
+          if (Date.now() - offer.ts > 30000) continue;
+          const cid = d.id.replace('_offer', '');
+          const status = await readSigAsync(cid, 'status');
+          if (status?.state === 'ended' || status?.state === 'declined' || status?.state === 'accepted') continue;
+          showIncomingCall(offer.callerName, offer.callType || 'video', cid, offer);
+          return;
+        }
+      } catch(_) {}
+    }
+
+    // localStorage (même appareil)
     const keys = Object.keys(localStorage).filter(k => k.startsWith('nova_sig_') && k.endsWith('_offer'));
     for (const k of keys) {
       try {
@@ -3729,8 +3806,6 @@ function startIncomingCallPoll() {
         const offer = JSON.parse(raw);
         if (offer.calleeUid !== me.uid) continue;
         if (Date.now() - offer.ts > 30000) { localStorage.removeItem(k); continue; }
-        if (document.getElementById('call-screen').classList.contains('active')) continue;
-        if (document.getElementById('call-incoming').classList.contains('active')) continue;
         const cid = k.replace('nova_sig_', '').replace('_offer', '');
         const status = readSig(cid, 'status');
         if (status?.state === 'ended' || status?.state === 'declined' || status?.state === 'accepted') continue;
@@ -3773,31 +3848,46 @@ async function acceptCall() {
   showCallScreen(offer.callerName, _callType);
   document.getElementById('call-status-txt').textContent = '🟢 En communication';
   try {
-    _localStream = await navigator.mediaDevices.getUserMedia({ video: _callType === 'video' ? { facingMode: _callFacing } : false, audio: true });
+    _localStream = await navigator.mediaDevices.getUserMedia({
+      video: _callType === 'video' ? { facingMode: _callFacing } : false,
+      audio: true
+    });
     const lv = document.getElementById('call-local-video');
     lv.srcObject = _localStream;
     lv.style.display = _callType === 'video' ? 'block' : 'none';
+
     _pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     _localStream.getTracks().forEach(t => _pc.addTrack(t, _localStream));
     _pc.ontrack = e => {
       _remoteStream = e.streams[0];
       const rv = document.getElementById('call-remote-video');
       rv.srcObject = _remoteStream;
-      if (_callType === 'video') { rv.style.display = 'block'; document.getElementById('call-remote-placeholder').style.display = 'none'; }
+      if (_callType === 'video') {
+        rv.style.display = 'block';
+        document.getElementById('call-remote-placeholder').style.display = 'none';
+      }
     };
-    _pc.onicecandidate = e => {
+    _pc.onicecandidate = async e => {
       if (!e.candidate) return;
       const ex = readSig(_callCid, 'callee-ice') || { candidates: [] };
-      ex.candidates = [...(ex.candidates || []), e.candidate.toJSON()];
-      writeSig(_callCid, 'callee-ice', ex);
+      ex.candidates = [...(ex.candidates||[]), e.candidate.toJSON()];
+      await writeSig(_callCid, 'callee-ice', ex);
     };
+
     await _pc.setRemoteDescription(new RTCSessionDescription({ type: offer.type, sdp: offer.sdp }));
-    const callerIce = readSig(_callCid, 'caller-ice');
-    if (callerIce?.candidates) for (const c of callerIce.candidates) { try { await _pc.addIceCandidate(new RTCIceCandidate(c)); } catch(_) {} }
+
+    // Ajouter les ICE candidates de l'appelant
+    const callerIce = await readSigAsync(_callCid, 'caller-ice');
+    if (callerIce?.candidates) {
+      for (const c of callerIce.candidates) {
+        try { await _pc.addIceCandidate(new RTCIceCandidate(c)); } catch(_) {}
+      }
+    }
+
     const answer = await _pc.createAnswer();
     await _pc.setLocalDescription(answer);
-    writeSig(_callCid, 'answer', { sdp: answer.sdp, type: answer.type });
-    writeSig(_callCid, 'status', { state: 'accepted', from: me?.uid });
+    await writeSig(_callCid, 'answer', { sdp: answer.sdp, type: answer.type });
+    await writeSig(_callCid, 'status', { state: 'accepted', from: me?.uid });
     pollRemoteIce('caller-ice');
     startCallTimer();
   } catch(e) { toast('Erreur : ' + e.message, 'err'); endCall(); }
@@ -4170,8 +4260,18 @@ function vTap(e, idx) {
   const vid = item?.querySelector('video');
   const ic = document.getElementById('vpc-'+idx);
   if (!vid) return;
-  if (vid.paused) { vid.play().catch(()=>{}); if(ic){ic.classList.add('show');setTimeout(()=>ic.classList.remove('show'),600);} }
-  else { vid.pause(); if(ic) ic.classList.add('show'); }
+  if (vid.paused) {
+    vid.play().catch(()=>{});
+    if (ic) { ic.classList.add('show'); setTimeout(()=>ic.classList.remove('show'),600); }
+    // Relancer la musique si elle existe
+    const v = vItems[idx];
+    if (v?.musicDataUrl) playVideoMusic(v, vid);
+  } else {
+    vid.pause();
+    if (ic) ic.classList.add('show');
+    // Mettre en pause la musique aussi
+    if (vid._musicAudio) { vid._musicAudio.pause(); }
+  }
 }
 
 function vLike(idx) {
