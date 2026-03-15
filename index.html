@@ -1462,10 +1462,17 @@ const firebaseConfig = {
         <div class="call-btn-ic">🔊</div>
         <div class="call-btn-lbl">Son</div>
       </div>
+      <div class="call-btn" id="btn-screen" onclick="toggleScreenShare()">
+        <div class="call-btn-ic">🖥️</div>
+        <div class="call-btn-lbl">Écran</div>
+      </div>
+    </div>
+    <div class="call-btns-row" style="margin-top:8px">
       <div class="call-btn" id="btn-flip-call" onclick="flipCallCam()">
         <div class="call-btn-ic">🔄</div>
         <div class="call-btn-lbl">Retourner</div>
       </div>
+    </div>
     </div>
   </div>
 </div>
@@ -2207,25 +2214,47 @@ async function loadConversations() {
   if (!me) return;
   const container = document.getElementById('conv-list');
   if (!fb?.db) {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('nova_msgs_'));
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    const myData = users.find(u => u.uid === me.uid);
+    const friendIds = myData?.friends || [];
+    const seen = new Set();
     const convItems = [];
+
+    // 1. Conversations existantes
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('nova_msgs_'));
     keys.forEach(k => {
       const parts = k.replace('nova_msgs_', '').split('__');
       if (!parts.includes(me.uid)) return;
       const otherId = parts.find(p => p !== me.uid);
+      if (!otherId) return;
+      seen.add(otherId);
       const other = users.find(u => u.uid === otherId);
       if (!other) return;
       const msgs = JSON.parse(localStorage.getItem(k) || '[]');
       const last = msgs[msgs.length - 1];
-      const unread = msgs.filter(m => m.from !== me.uid && !m.read).length;
+      const unread = msgs.filter(m => m.from !== me.uid && m.status !== 'read').length;
       convItems.push({ other, last, unread });
     });
+
+    // 2. Amis sans conversation — les ajouter quand même
+    friendIds.forEach(fid => {
+      if (seen.has(fid)) return;
+      const friend = users.find(u => u.uid === fid);
+      if (!friend) return;
+      convItems.push({ other: friend, last: null, unread: 0 });
+    });
+
     if (!convItems.length) {
       container.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Aucune conversation</div><div class="empty-sub">Commence par ajouter des amis,<br>puis envoie-leur un message !</div><button class="empty-cta" onclick="S('s-friends')">Trouver des amis →</button></div>`;
       return;
     }
-    container.innerHTML = convItems.map(c => renderConvItem(c.other.uid, c.other.displayName, c.other.username, c.last?.text || '...', c.last ? fmtTs(new Date(c.last.ts)) : '', c.unread)).join('');
+    // Trier: conversations récentes d'abord, amis sans message après
+    convItems.sort((a, b) => {
+      const ta = a.last ? new Date(a.last.ts).getTime() : 0;
+      const tb = b.last ? new Date(b.last.ts).getTime() : 0;
+      return tb - ta;
+    });
+    container.innerHTML = convItems.map(cv => renderConvItem(cv.other.uid, cv.other.displayName, cv.other.username, cv.last?.type === 'system' ? '' : (cv.last?.text || (cv.last ? '...' : 'Dis bonjour ! 👋')), cv.last ? fmtTs(new Date(cv.last.ts)) : '', cv.unread)).join('');
     return;
   }
   const { collection, query, where, orderBy, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
@@ -2549,38 +2578,48 @@ let _typingPollInterval = null;
 
 async function onTyping() {
   if (!convId || !me) return;
+  const ta = document.getElementById('msg-ta');
+  const hasText = ta && ta.value.length > 0;
 
-  // ── Mode local : stocker le timestamp dans localStorage ──
   if (!fb?.db) {
+    // Mode local
     const tk = 'nova_typing_' + convId;
     const td = JSON.parse(localStorage.getItem(tk) || '{}');
-    td[me.uid] = Date.now();
+    if (hasText) {
+      td[me.uid] = Date.now();
+    } else {
+      delete td[me.uid]; // plus de texte = arrêter
+    }
     localStorage.setItem(tk, JSON.stringify(td));
     clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-      const td2 = JSON.parse(localStorage.getItem(tk) || '{}');
-      delete td2[me.uid];
-      localStorage.setItem(tk, JSON.stringify(td2));
-    }, 2500);
+    if (hasText) {
+      typingTimeout = setTimeout(() => {
+        const td2 = JSON.parse(localStorage.getItem(tk) || '{}');
+        delete td2[me.uid];
+        localStorage.setItem(tk, JSON.stringify(td2));
+      }, 3000);
+    }
     return;
   }
 
-  // ── Firebase ──
+  // Firebase
   try {
     const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
     await setDoc(doc(fb.db, 'typing', convId), {
-      [me.uid]: true,
+      [me.uid]: hasText,
       [`${me.uid}_ts`]: Date.now()
-    }, { merge:true });
+    }, { merge: true });
   } catch(_) {}
   clearTimeout(typingTimeout);
-  typingTimeout = setTimeout(async () => {
-    if (!fb?.db || !convId || !me) return;
-    try {
-      const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-      await updateDoc(doc(fb.db, 'typing', convId), { [me.uid]: false });
-    } catch(_) {}
-  }, 2500);
+  if (hasText) {
+    typingTimeout = setTimeout(async () => {
+      if (!fb?.db || !convId || !me) return;
+      try {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await updateDoc(doc(fb.db, 'typing', convId), { [me.uid]: false });
+      } catch(_) {}
+    }, 3000);
+  }
 }
 
 // Poll localStorage toutes les 500ms pour voir si l'autre écrit
@@ -3942,8 +3981,73 @@ function startCallTimer() {
     const m = String(Math.floor(_callSeconds / 60)).padStart(2, '0');
     const s = String(_callSeconds % 60).padStart(2, '0');
     timerEl.textContent = `${m}:${s}`;
+
+    // Auto-raccrocher après 3 minutes (180 secondes) si toujours en appel
+    if (_callSeconds >= 180) {
+      clearInterval(_callTimerInterval);
+      toast('⏱ Durée maximale atteinte (3 min)', 'inf');
+      endCall();
+    }
   }, 1000);
 }
+
+// ── Partage d'écran ──
+let _screenStream = null;
+let _isSharing = false;
+
+async function toggleScreenShare() {
+  const btn = document.getElementById('btn-screen');
+  if (_isSharing) {
+    // Arrêter le partage — revenir à la caméra
+    _isSharing = false;
+    if (_screenStream) { _screenStream.getTracks().forEach(t => t.stop()); _screenStream = null; }
+    if (btn) { btn.querySelector('.call-btn-ic').textContent = '🖥️'; btn.querySelector('.call-btn-lbl').textContent = 'Écran'; btn.classList.remove('on'); }
+    // Revenir à la caméra si dispo
+    if (_localStream && _pc) {
+      const videoTrack = _localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        const sender = _pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) await sender.replaceTrack(videoTrack);
+      }
+    }
+    toast('Partage d\'écran arrêté', 'inf');
+    return;
+  }
+
+  // Démarrer le partage d'écran
+  try {
+    _screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    const screenTrack = _screenStream.getVideoTracks()[0];
+
+    // Remplacer la piste vidéo dans la connexion WebRTC
+    if (_pc) {
+      const sender = _pc.getSenders().find(s => s.track?.kind === 'video');
+      if (sender) await sender.replaceTrack(screenTrack);
+      else {
+        // Pas encore de piste vidéo → ajouter
+        _pc.addTrack(screenTrack, _screenStream);
+      }
+    }
+
+    // Afficher dans la miniature locale
+    const lv = document.getElementById('call-local-video');
+    if (lv) { lv.srcObject = _screenStream; lv.style.display = 'block'; }
+
+    _isSharing = true;
+    if (btn) { btn.querySelector('.call-btn-ic').textContent = '⏹️'; btn.querySelector('.call-btn-lbl').textContent = 'Stop'; btn.classList.add('on'); }
+    toast('📺 Partage d\'écran actif', 'ok');
+
+    // Arrêt automatique si l'utilisateur clique "Arrêter le partage" dans le navigateur
+    screenTrack.onended = () => {
+      _isSharing = false;
+      _screenStream = null;
+      if (btn) { btn.querySelector('.call-btn-ic').textContent = '🖥️'; btn.querySelector('.call-btn-lbl').textContent = 'Écran'; btn.classList.remove('on'); }
+    };
+  } catch(e) {
+    if (e.name !== 'NotAllowedError') toast('Partage d\'écran non disponible', 'err');
+  }
+}
+window.toggleScreenShare = toggleScreenShare;
 
 function toggleMute() {
   if (!_localStream) return;
