@@ -1151,7 +1151,7 @@ const firebaseConfig = {
     </div>
   </div>
   <div class="bnav">
-    <div class="bntab on" id="bn-home" onclick="bnav(this,'home')"><div class="bni">💬</div><div class="bnl">Messages</div></div>
+    <div class="bntab on" id="bn-home" onclick="bnav(this,'home')"><div class="bni">💬</div><div class="bnl">Messagerie</div></div>
     <div class="bntab" id="bn-videos" onclick="bnav(this,'videos')"><div class="bni">▶️</div><div class="bnl">Vidéos</div></div>
     <div class="bn-cam" onclick="S('s-camera')">📷</div>
     <div class="bntab" id="bn-friends" onclick="bnav(this,'friends')"><div class="bni">👥</div><div class="bnl">Amis</div><div class="bn-dot" id="req-dot" style="display:none"></div></div>
@@ -2259,18 +2259,39 @@ async function loadConversations() {
     container.innerHTML = convItems.map(cv => renderConvItem(cv.other.uid, cv.other.displayName, cv.other.username, cv.last?.type === 'system' ? '' : (cv.last?.text || (cv.last ? '...' : 'Dis bonjour ! 👋')), cv.last ? fmtTs(new Date(cv.last.ts)) : '', cv.unread)).join('');
     return;
   }
-  const { collection, query, where, orderBy, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+  // Firebase — écouter les conversations ET afficher les amis sans conv
+  const { collection, query, where, orderBy, onSnapshot, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
   const q = query(collection(fb.db, 'conversations'), where('participants', 'array-contains', me.uid), orderBy('lastTime', 'desc'));
   if (unsubConvs) unsubConvs();
-  unsubConvs = onSnapshot(q, snap => {
-    if (snap.empty) { container.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Aucune conversation</div><div class="empty-sub">Ajoute des amis et commence à discuter !</div><button class="empty-cta" onclick="S('s-friends')">Trouver des amis →</button></div>`; return; }
-    container.innerHTML = snap.docs.map(d => {
-      const c = d.data();
-      const oid = c.participants.find(p => p !== me.uid);
-      const od = c.pData?.[oid] || {};
-      const unread = c.unread?.[me.uid] || 0;
-      return renderConvItem(oid, od.displayName || 'Utilisateur', od.username || '', c.lastText || '...', c.lastTime ? fmtTs(c.lastTime.toDate?.() || new Date(c.lastTime)) : '', unread, d.id);
-    }).join('');
+  unsubConvs = onSnapshot(q, async snap => {
+    const convUids = new Set();
+    const convCards = [];
+    snap.docs.forEach(d => {
+      const cv = d.data();
+      const oid = cv.participants.find(p => p !== me.uid);
+      if (oid) convUids.add(oid);
+      const od = cv.pData?.[oid] || {};
+      const unread = cv.unread?.[me.uid] || 0;
+      convCards.push(renderConvItem(oid, od.displayName || 'Utilisateur', od.username || '', cv.lastText || 'Dis bonjour ! 👋', cv.lastTime ? fmtTs(cv.lastTime.toDate?.() || new Date(cv.lastTime)) : '', unread, d.id));
+    });
+    // Ajouter les amis sans conversation
+    const friendCards = [];
+    for (const fid of myFriendIds) {
+      if (convUids.has(fid)) continue;
+      try {
+        const fs = await getDoc(doc(fb.db, 'users', fid));
+        if (fs.exists()) {
+          const fd = fs.data();
+          friendCards.push(renderConvItem(fid, fd.displayName || 'Utilisateur', fd.username || '', 'Dis bonjour ! 👋', '', 0, ''));
+        }
+      } catch(_) {}
+    }
+    const all = [...convCards, ...friendCards];
+    if (!all.length) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Aucune conversation</div><div class="empty-sub">Ajoute des amis et commence à discuter !</div><button class="empty-cta" onclick="S('s-friends')">Trouver des amis →</button></div>`;
+    } else {
+      container.innerHTML = all.join('');
+    }
   });
 }
 
@@ -3985,13 +4006,21 @@ function endCall() {
   if (_callTimerInterval) { clearInterval(_callTimerInterval); _callTimerInterval = null; }
   if (_pc) { _pc.close(); _pc = null; }
   if (_localStream) { _localStream.getTracks().forEach(t => t.stop()); _localStream = null; }
+  // Stopper le partage d'écran si actif
+  if (_screenStream) { _screenStream.getTracks().forEach(t => t.stop()); _screenStream = null; }
+  _isSharing = false;
+  const screenBtn = document.getElementById('btn-screen');
+  if (screenBtn) { screenBtn.querySelector('.call-btn-ic').textContent = '🖥️'; screenBtn.querySelector('.call-btn-lbl').textContent = 'Écran'; screenBtn.classList.remove('on'); }
+  // Sortir du plein écran si actif
+  if (document.fullscreenElement) { document.exitFullscreen().catch(()=>{}); }
   _remoteStream = null; _isMuted = false; _isCamOff = false; _callSeconds = 0;
   if (_callCid) { writeSig(_callCid, 'status', { state: 'ended', from: me?.uid }); setTimeout(() => clearSig(_callCid), 2000); }
   _callCid = null;
   document.getElementById('call-screen').classList.remove('active');
   document.getElementById('call-incoming').classList.remove('active');
-  const rv = document.getElementById('call-remote-video'); if (rv) rv.srcObject = null;
-  const lv = document.getElementById('call-local-video'); if (lv) lv.srcObject = null;
+  const rv = document.getElementById('call-remote-video');
+  if (rv) { rv.srcObject = null; rv.onclick = null; rv.style.cursor = ''; rv.style.display = 'none'; }
+  const lv = document.getElementById('call-local-video'); if (lv) { lv.srcObject = null; }
   document.getElementById('call-timer').style.display = 'none';
   if (navigator.vibrate) navigator.vibrate(0);
 }
