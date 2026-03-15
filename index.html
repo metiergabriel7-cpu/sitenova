@@ -973,7 +973,45 @@ body::before{
       <button class="btn-primary" onclick="S('s-register')">Créer mon compte →</button>
       <button class="btn-outline" onclick="S('s-login')">Se connecter</button>
     </div>
-    <div class="sp-setup-link" onclick="S('s-setup')">Configurer Firebase pour les vrais messages → <span>voir le guide</span></div>
+    <div class="sp-setup-link" onclick="S('s-setup')">Configurer Firebase → <span>voir le guide</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ FIREBASE FIRST TIME ═══════════ -->
+<div class="screen hidden" id="s-fb-first">
+  <div class="sp-orb orb1"></div>
+  <div class="sp-orb orb2"></div>
+  <div class="sp-inner" style="gap:20px;padding-top:60px">
+    <div style="font-size:44px">🔥</div>
+    <div style="font-size:26px;font-weight:800;letter-spacing:-.5px;text-align:center">Connecte Firebase</div>
+    <div style="font-size:14px;color:var(--t2);text-align:center;line-height:1.7">
+      Pour utiliser NOVA avec tes amis sur d'autres appareils, tu as besoin de Firebase.<br>
+      <strong style="color:var(--t1)">C'est gratuit et prend 5 minutes.</strong>
+    </div>
+
+    <!-- Config rapide -->
+    <div style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:20px;display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--t2)">📋 Colle ta config Firebase ici :</div>
+      <textarea id="fb-paste-config" rows="8" placeholder='Colle tout le bloc firebaseConfig ici :
+
+const firebaseConfig = {
+  apiKey: "...",
+  authDomain: "...",
+  projectId: "...",
+  storageBucket: "...",
+  messagingSenderId: "...",
+  appId: "..."
+};'
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--r);padding:14px;font-size:12px;color:var(--t2);font-family:monospace;outline:none;resize:none;line-height:1.6"
+        oninput="parseFbPaste(this.value)"></textarea>
+      <div id="fb-paste-status" style="font-size:12px;color:var(--t3);min-height:16px"></div>
+      <button class="btn-primary" id="fb-paste-btn" onclick="connectFbFromPaste()" disabled>🔥 Connecter</button>
+    </div>
+
+    <div style="width:100%;display:flex;flex-direction:column;gap:8px">
+      <button class="btn-outline" onclick="S('s-setup')" style="font-size:14px;padding:13px">📖 Voir le guide Firebase</button>
+      <button style="background:none;border:none;color:var(--t3);cursor:pointer;font-family:var(--ff);font-size:13px;padding:8px" onclick="skipFbSetup()">Continuer sans Firebase (même appareil seulement)</button>
+    </div>
   </div>
 </div>
 
@@ -1593,10 +1631,24 @@ window.addEventListener('load', async () => {
   try { await tryAutoConnect(); } catch(_) {}
   try { await checkSession(); } catch(_) {}
   restoreWallpaper();
-  // Loader disparaît toujours, même si Firebase échoue
+
   setTimeout(() => {
     const ld = document.getElementById('loader');
     if (ld) { ld.classList.add('fade'); setTimeout(() => { try { ld.remove(); } catch(_) {} }, 600); }
+
+    // Premier lancement sans Firebase configuré → montrer l'écran setup
+    const fbConfigured = localStorage.getItem('nova_fb_configured');
+    const hasFb = localStorage.getItem('nova_fb');
+    const hasSession = localStorage.getItem('nova_me');
+
+    if (!fbConfigured && !hasFb && !hasSession) {
+      // Tout premier lancement → proposer Firebase
+      setTimeout(() => {
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        document.getElementById('s-fb-first').classList.remove('hidden');
+        screenHistory = ['s-fb-first'];
+      }, 200);
+    }
   }, 800);
 });
 
@@ -1673,14 +1725,72 @@ function saveFb() {
 
 async function tryAutoConnect() {
   const c = JSON.parse(localStorage.getItem('nova_fb') || '{}');
-  if (!c.apiKey || !c.projectId) return; // pas de config = mode local, on continue
+  if (!c.apiKey || !c.projectId) return;
   try {
     await initFb(c);
   } catch(e) {
     console.warn('Firebase auto-connect:', e.message);
-    // Pas bloquant — on continue en mode local
   }
 }
+
+// ── Firebase First-Time Setup ──
+// Parse la config collée depuis la console Firebase
+window._parsedFbConfig = null;
+
+function parseFbPaste(text) {
+  const status = document.getElementById('fb-paste-status');
+  const btn = document.getElementById('fb-paste-btn');
+
+  // Extraire les valeurs du bloc firebaseConfig
+  const fields = ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'];
+  const cfg = {};
+  fields.forEach(f => {
+    const match = text.match(new RegExp(`["']?${f}["']?\\s*:\\s*["']([^"']+)["']`));
+    if (match) cfg[f] = match[1];
+  });
+
+  const found = Object.keys(cfg).length;
+  if (found === 0) {
+    if (status) status.textContent = '';
+    if (btn) btn.disabled = true;
+    window._parsedFbConfig = null;
+  } else if (found < 3) {
+    if (status) { status.textContent = `⚠️ Config incomplète (${found}/6 champs trouvés)`; status.style.color = 'var(--yellow)'; }
+    if (btn) btn.disabled = true;
+    window._parsedFbConfig = null;
+  } else {
+    if (status) { status.textContent = `✓ ${found}/6 champs trouvés — prêt à connecter !`; status.style.color = 'var(--green)'; }
+    if (btn) btn.disabled = false;
+    window._parsedFbConfig = cfg;
+  }
+}
+window.parseFbPaste = parseFbPaste;
+
+async function connectFbFromPaste() {
+  const cfg = window._parsedFbConfig;
+  if (!cfg) { toast('Colle ta config Firebase d\'abord', 'err'); return; }
+  const btn = document.getElementById('fb-paste-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Connexion...'; }
+  try {
+    await initFb(cfg);
+    // Sauvegarder pour les prochains lancements
+    localStorage.setItem('nova_fb', JSON.stringify(cfg));
+    localStorage.setItem('nova_fb_configured', '1');
+    document.getElementById('s-fb').textContent = 'Connecté ✓';
+    toast('🔥 Firebase connecté ! Tu peux inviter tes amis.', 'ok');
+    S('s-splash');
+  } catch(e) {
+    toast('Erreur Firebase: ' + e.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = '🔥 Connecter'; }
+  }
+}
+window.connectFbFromPaste = connectFbFromPaste;
+
+function skipFbSetup() {
+  localStorage.setItem('nova_fb_configured', 'skipped');
+  S('s-splash');
+}
+window.skipFbSetup = skipFbSetup;
 
 async function connectFb() {
   saveFb();
