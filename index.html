@@ -372,6 +372,10 @@ body::before{
   border:1px solid var(--border2);
   border-radius:20px 20px 20px 5px;
 }
+@keyframes msgIn{
+  from{opacity:0;transform:translateY(10px) scale(.96)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
 .mrow.me > div { display:flex; flex-direction:column; align-items:flex-end; }
 .mrow.them > div { display:flex; flex-direction:column; align-items:flex-start; }
 .bubble-img{width:200px;height:250px;border-radius:18px;overflow:hidden;cursor:pointer}
@@ -389,8 +393,11 @@ body::before{
 .tdot:nth-child(3){animation-delay:.3s}
 @keyframes tdot{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
 
-.typing-label{font-size:12px;color:var(--e2);font-style:italic;animation:typingFade 1s ease-in-out infinite alternate}
-@keyframes typingFade{from{opacity:.6}to{opacity:1}}
+.typing-label{font-size:12px;color:var(--e2);font-style:italic;display:flex;align-items:center;gap:2px}
+.typing-dots span{animation:dotBounce .9s ease-in-out infinite;display:inline-block;font-style:normal}
+.typing-dots span:nth-child(2){animation-delay:.15s}
+.typing-dots span:nth-child(3){animation-delay:.3s}
+@keyframes dotBounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-4px)}}
 
 :root{--bubble-from:#6c63ff;--bubble-to:#a78bfa}
 .mrow.me .bubble{background:linear-gradient(135deg,var(--bubble-from),var(--bubble-to)) !important;}
@@ -1120,7 +1127,7 @@ body::before{
     <button class="back-btn" onclick="closeChat()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Retour
     </button>
-    <div class="chat-hd-mid">
+    <div class="chat-hd-mid" onclick="openNicknameMenu()">
       <div class="cv-av-wrap">
         <div class="av s44" id="ch-av"></div>
         <div class="online" id="ch-online" style="display:none"></div>
@@ -1129,7 +1136,10 @@ body::before{
         <div class="chat-hd-name" id="ch-name">...</div>
         <div id="ch-status-wrap">
           <div class="chat-hd-status live" id="ch-status">...</div>
-          <div class="typing-label" id="ch-typing" style="display:none">est en train d'écrire...</div>
+          <div class="typing-label" id="ch-typing" style="display:none">
+            <span>est en train d'écrire</span>
+            <span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>
+          </div>
         </div>
       </div>
     </div>
@@ -1160,6 +1170,7 @@ body::before{
     <div class="input-pill">
       <textarea class="msg-input" id="msg-ta" placeholder="Écris un message..." rows="1" oninput="growTa(this)" onkeydown="taKey(event)"></textarea>
       <div class="inp-extras">
+        <span id="char-count" style="font-size:11px;color:var(--t4);font-weight:600;min-width:26px;text-align:right;align-self:center;padding:0 4px;transition:color .2s"></span>
         <button class="iex" onclick="toggleEmoji()">😀</button>
       </div>
     </div>
@@ -1386,7 +1397,7 @@ body::before{
       <div id="call-remote-av">?</div>
     </div>
     <div id="call-remote-name">...</div>
-   <div id="call-status-txt"><div class="call-status-dot"></div>Appel en cours...</div>
+    <div id="call-status-txt"><div class="call-status-dot"></div>Appel en cours...</div>
   </div>
   <video id="call-local-video" autoplay muted playsinline onclick="toggleLocalVideo()"></video>
   <div id="call-local-label">Moi</div>
@@ -1750,19 +1761,17 @@ async function checkSession() {
 
 function goHome() {
   updateSettingsUI();
-  // Cacher tous les écrans
   document.querySelectorAll('.screen').forEach(s => {
     s.classList.add('hidden');
     s.classList.remove('behind');
   });
-  // Afficher home
   const home = document.getElementById('s-home');
   if (home) home.classList.remove('hidden');
   screenHistory = ['s-home'];
-  // Charger les données APRÈS que l'écran est visible
   setTimeout(() => {
     loadConversations();
     startRealtimeSync();
+    startIncomingCallPoll(); // ← démarre ICI quand me est défini
   }, 50);
 }
 
@@ -2132,21 +2141,26 @@ function openConv(uid, name, username, cid) {
   otherUser = { uid, displayName: name, username };
   convId = cid || convKey(me.uid, uid);
 
-  // Avatar avec photo si dispo
+  // Charger surnom
+  const nickname = getNickname(uid);
+  const displayName = nickname || name;
+
+  // Avatar
   const chAv = document.getElementById('ch-av');
   const otherAvatar = localStorage.getItem('nova_avatar_' + uid);
   if (otherAvatar) {
     chAv.innerHTML = `<img src="${otherAvatar}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`;
   } else {
-    chAv.textContent = initials(name);
+    chAv.textContent = initials(displayName);
   }
 
-  document.getElementById('ch-name').textContent = name;
-  document.getElementById('ch-status').textContent = username ? '@' + username : 'NOVA';
+  document.getElementById('ch-name').textContent = displayName;
+  document.getElementById('ch-status').textContent = nickname
+    ? `${name} · @${username || ''}`
+    : (username ? '@' + username : 'NOVA');
   document.getElementById('ch-status').className = 'chat-hd-status live';
   S('s-chat');
 
-  // Chargement INSTANTANÉ depuis le cache
   if (!fb?.db) {
     const cached = getLocalMsgs(convId);
     if (cached.length) renderMessages(cached.map(m => ({ ...m, ts: new Date(m.ts) })));
@@ -2155,6 +2169,75 @@ function openConv(uid, name, username, cid) {
   subscribeMessages(convId);
   subscribeTyping(convId);
 }
+
+// ── Surnoms ──
+function getNickname(uid) {
+  const n = JSON.parse(localStorage.getItem('nova_nicknames') || '{}');
+  return n[uid] || null;
+}
+function setNickname(uid, nickname) {
+  const n = JSON.parse(localStorage.getItem('nova_nicknames') || '{}');
+  if (nickname) n[uid] = nickname; else delete n[uid];
+  localStorage.setItem('nova_nicknames', JSON.stringify(n));
+}
+
+function openNicknameMenu() {
+  if (!otherUser) return;
+  const current = getNickname(otherUser.uid) || '';
+  const overlay = document.createElement('div');
+  overlay.id = 'nn-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9980;display:flex;align-items:flex-end;backdrop-filter:blur(10px)';
+  overlay.innerHTML = `
+    <div style="width:100%;background:var(--bg2);border-radius:24px 24px 0 0;padding:24px 20px calc(28px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <div>
+          <div style="font-size:17px;font-weight:800;font-family:var(--ff)">✏️ Surnom</div>
+          <div style="font-size:12px;color:var(--t3);margin-top:3px">Visible uniquement par toi</div>
+        </div>
+        <div onclick="document.getElementById('nn-overlay').remove()" style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px">✕</div>
+      </div>
+      <input id="nn-input" value="${otherUser.displayName ? current : ''}" placeholder="Surnom pour ${otherUser.displayName}..."
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border2);border-radius:14px;padding:15px 18px;font-size:16px;color:var(--t1);font-family:var(--ff);outline:none;margin-bottom:8px"
+        maxlength="30" oninput="document.getElementById('nn-count').textContent=this.value.length+'/30'">
+      <div id="nn-count" style="font-size:11px;color:var(--t4);text-align:right;margin-bottom:16px">${current.length}/30</div>
+      <div style="display:flex;gap:10px">
+        <button onclick="saveNickname()" style="flex:2;padding:15px;border-radius:14px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700">💾 Sauvegarder</button>
+        ${current ? `<button onclick="removeNickname()" style="flex:1;padding:15px;border-radius:14px;background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.25);cursor:pointer;font-family:var(--ff);font-size:14px">✕ Retirer</button>` : ''}
+      </div>
+    </div>`;
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('nn-input')?.focus(), 100);
+}
+window.openNicknameMenu = openNicknameMenu;
+
+function saveNickname() {
+  const input = document.getElementById('nn-input');
+  if (!input || !otherUser) return;
+  const nick = input.value.trim().slice(0, 30);
+  setNickname(otherUser.uid, nick);
+  document.getElementById('ch-name').textContent = nick || otherUser.displayName;
+  document.getElementById('ch-status').textContent = nick
+    ? `${otherUser.displayName} · @${otherUser.username || ''}`
+    : (otherUser.username ? '@' + otherUser.username : 'NOVA');
+  document.getElementById('nn-overlay')?.remove();
+  playSound('ok');
+  toast(nick ? `Surnom "${nick}" enregistré ✓` : 'Surnom retiré', 'ok');
+  loadConversations();
+}
+window.saveNickname = saveNickname;
+
+function removeNickname() {
+  if (!otherUser) return;
+  setNickname(otherUser.uid, null);
+  document.getElementById('ch-name').textContent = otherUser.displayName;
+  document.getElementById('ch-status').textContent = otherUser.username ? '@' + otherUser.username : 'NOVA';
+  document.getElementById('nn-overlay')?.remove();
+  playSound('click');
+  toast('Surnom retiré', 'inf');
+  loadConversations();
+}
+window.removeNickname = removeNickname;
 
 // ═══════════════════════════════
 // MESSAGES
@@ -2203,7 +2286,12 @@ function renderMessages(msgs) {
     const nextIsMe = next ? (myUid && (next.from === myUid || next.from === 'me')) : null;
     const showAv = nextIsMe === null || nextIsMe !== isMe;
     const oInit = initials(otherUser?.displayName || '?');
-    if (m.type === 'img' && m.mediaUrl) {
+    if (m.type === 'system') {
+      // Message système centré style WhatsApp
+      html += `<div style="text-align:center;padding:8px 16px">
+        <span style="display:inline-block;background:var(--bg3);border:1px solid var(--border);color:var(--t3);font-size:12px;font-weight:500;padding:5px 14px;border-radius:50px;font-family:var(--ff)">${x(m.text||'')}</span>
+      </div>`;
+    } else if (m.type === 'img' && m.mediaUrl) {
       html += `<div class="mrow ${isMe?'me':'them'}">
         ${!isMe ? `<div class="mav ${showAv?'':'ghost'}">${oInit}</div>` : ''}
         <div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'}">
@@ -2212,31 +2300,33 @@ function renderMessages(msgs) {
         </div>
       </div>`;
     } else if (m.type === 'voice' && m.audioUrl) {
-      // Générer des barres d'ondes aléatoires mais stables (basées sur l'index)
       const bars = Array.from({length:20}, (_,j) => {
-        const h = 4 + ((i * 7 + j * 13) % 24);
-        return `<div class="voice-bar" style="height:${h}px"></div>`;
+        const h = 4 + ((i * 7 + j * 13) % 20);
+        return `<div class="voice-bar" style="height:${h}px;opacity:.7"></div>`;
       }).join('');
       const dur = m.duration || 0;
       const durStr = dur >= 60 ? `${Math.floor(dur/60)}:${String(dur%60).padStart(2,'0')}` : `0:${String(dur).padStart(2,'0')}`;
       const status = isMe ? (m.status==='read'?'<span class="tick r">✓✓</span>':'<span class="tick">✓</span>') : '';
+      const safeUrl = m.audioUrl.replace(/'/g, "\\'");
       html += `<div class="mrow ${isMe?'me':'them'}">
         ${!isMe ? `<div class="mav ${showAv?'':'ghost'}">${oInit}</div>` : ''}
         <div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'}">
-          <div class="voice-msg" onclick="playVoiceMsg(this.querySelector('.voice-play'),'${m.audioUrl}')">
-            <div class="voice-play">▶️</div>
-            <div class="voice-waves">${bars}</div>
-            <div class="voice-dur">${durStr}</div>
+          <div class="voice-msg" style="cursor:pointer" onclick="playVoiceMsg(this.querySelector('.voice-play'), '${safeUrl}')">
+            <div class="voice-play" style="pointer-events:none">▶️</div>
+            <div class="voice-waves" style="pointer-events:none">${bars}</div>
+            <div class="voice-dur" style="pointer-events:none">${durStr}</div>
           </div>
           <div class="msg-meta">${timeStr} ${status}</div>
         </div>
       </div>`;
     } else {
       const status = isMe ? (m.status === 'read' ? '<span class="tick r">✓✓</span>' : '<span class="tick">✓</span>') : '';
-      html += `<div class="mrow ${isMe?'me':'them'}">
+      // Texte en une seule ligne fluide (pas mot par mot)
+      const isNew = i === msgs.length - 1;
+      html += `<div class="mrow ${isMe?'me':'them'}" style="${isNew?'animation:msgIn .2s ease-out':''}">
         ${!isMe ? `<div class="mav ${showAv?'':'ghost'}">${oInit}</div>` : ''}
         <div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'}">
-          <div class="bubble">${x(m.text || '')}</div>
+          <div class="bubble">${x(m.text || '').replace(/\n/g,'<br>')}</div>
           <div class="msg-meta">${timeStr} ${status}</div>
         </div>
       </div>`;
@@ -2418,6 +2508,18 @@ function growTa(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 110) + 'px';
   document.getElementById('send-btn').disabled = !el.value.trim() && !pendingFiles.length;
+
+  // Compteur de caractères
+  const count = el.value.length;
+  const cc = document.getElementById('char-count');
+  if (cc) {
+    if (count === 0) {
+      cc.textContent = '';
+    } else {
+      cc.textContent = count;
+      cc.style.color = count > 800 ? 'var(--red)' : count > 500 ? 'var(--yellow)' : 'var(--t3)';
+    }
+  }
   onTyping();
 }
 
@@ -2541,21 +2643,63 @@ window.stopVoiceMsgRec = stopVoiceMsgRec;
 
 // Lire un message vocal
 function playVoiceMsg(btn, audioUrl) {
-  // Si déjà un audio en cours sur un autre message, l'arrêter
-  if (window._currentVoiceAudio && !window._currentVoiceAudio.paused) {
+  // Stopper tout audio en cours
+  if (window._currentVoiceAudio) {
     window._currentVoiceAudio.pause();
     window._currentVoiceAudio.currentTime = 0;
-    // Reset tous les boutons
-    document.querySelectorAll('.voice-play').forEach(b => b.textContent = '▶️');
-    if (window._currentVoiceBtn === btn) { window._currentVoiceAudio = null; window._currentVoiceBtn = null; return; }
+    document.querySelectorAll('.voice-play').forEach(b => { b.textContent = '▶️'; });
+    const wasSame = window._currentVoiceBtn === btn;
+    window._currentVoiceAudio = null;
+    window._currentVoiceBtn = null;
+    if (wasSame) return; // toggle : clic sur le même = pause
   }
-  const audio = new Audio(audioUrl);
-  window._currentVoiceAudio = audio;
-  window._currentVoiceBtn = btn;
-  btn.textContent = '⏸️';
-  audio.play();
-  audio.onended = () => { btn.textContent = '▶️'; window._currentVoiceAudio = null; };
-  audio.onerror = () => { btn.textContent = '▶️'; toast('Erreur lecture audio', 'err'); };
+
+  try {
+    const audio = new Audio(audioUrl);
+    audio.volume = 1.0;
+    window._currentVoiceAudio = audio;
+    window._currentVoiceBtn = btn;
+    btn.textContent = '⏸️';
+
+    // Animer les barres pendant la lecture
+    const voiceMsg = btn.closest('.voice-msg');
+    const bars = voiceMsg?.querySelectorAll('.voice-bar');
+    let animFrame;
+    const animBars = () => {
+      if (!bars) return;
+      bars.forEach(b => {
+        const h = 4 + Math.random() * 20;
+        b.style.height = h + 'px';
+        b.style.opacity = '1';
+      });
+      animFrame = requestAnimationFrame(animBars);
+    };
+    animBars();
+
+    audio.play().catch(e => {
+      toast('Impossible de lire le message vocal', 'err');
+      btn.textContent = '▶️';
+      window._currentVoiceAudio = null;
+    });
+
+    audio.onended = () => {
+      btn.textContent = '▶️';
+      cancelAnimationFrame(animFrame);
+      // Reset barres
+      if (bars) bars.forEach((b, j) => { b.style.height = (4 + ((j*13)%20)) + 'px'; b.style.opacity = '0.6'; });
+      window._currentVoiceAudio = null;
+      window._currentVoiceBtn = null;
+    };
+
+    audio.onerror = () => {
+      btn.textContent = '▶️';
+      cancelAnimationFrame(animFrame);
+      window._currentVoiceAudio = null;
+      toast('Erreur lecture audio', 'err');
+    };
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'err');
+  }
 }
 window.playVoiceMsg = playVoiceMsg;
 
@@ -2794,7 +2938,7 @@ async function loadFriends() {
 }
 
 async function acceptFriend(uid, name, username, btn) {
-  btn.disabled = true;
+  if (btn) btn.disabled = true;
   if (!fb?.db) {
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const me_ = users.find(u => u.uid === me.uid);
@@ -2803,16 +2947,30 @@ async function acceptFriend(uid, name, username, btn) {
     if (other) { other.friends=[...new Set([...(other.friends||[]),me.uid])]; }
     localStorage.setItem('nova_users', JSON.stringify(users));
     myFriendIds = me_?.friends || [];
+
+    // Créer une conversation vide pour qu'il apparaisse dans les messages
+    const cid = convKey(me.uid, uid);
+    const existing = getLocalMsgs(cid);
+    if (!existing.length) {
+      // Ajouter un message système invisible pour créer la conv
+      const sysMsg = { from: 'system', text: `👋 Vous êtes maintenant amis !`, type: 'system', ts: new Date().toISOString(), status: 'read' };
+      localStorage.setItem('nova_msgs_' + cid, JSON.stringify([sysMsg]));
+    }
+
+    playSound('ok');
     toast(`🤝 ${name} est maintenant ton ami !`, 'ok');
-    loadFriends(); return;
+    loadFriends();
+    loadConversations(); // ← rafraîchir la liste des messages
+    return;
   }
   try {
     const { doc, updateDoc, arrayUnion, arrayRemove } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
     await updateDoc(doc(fb.db,'users',me.uid), { friends:arrayUnion(uid), friendRequests:arrayRemove(uid) });
     await updateDoc(doc(fb.db,'users',uid), { friends:arrayUnion(me.uid) });
+    playSound('ok');
     toast(`🤝 ${name} et toi êtes maintenant amis !`, 'ok');
     loadFriends();
-  } catch(e) { toast(e.message, 'err'); btn.disabled=false; }
+  } catch(e) { toast(e.message, 'err'); if (btn) btn.disabled=false; }
 }
 
 async function rejectFriend(uid, btn) {
@@ -3185,6 +3343,7 @@ async function startCall(type) {
   showCallScreen(otherUser.displayName, type);
   startRinging();
   document.getElementById('call-status-txt').textContent = type === 'video' ? '📹 Appel vidéo...' : '📞 Appel vocal...';
+  try {
     _localStream = await navigator.mediaDevices.getUserMedia({ video: type === 'video' ? { facingMode: _callFacing } : false, audio: true });
     const lv = document.getElementById('call-local-video');
     lv.srcObject = _localStream;
@@ -3248,34 +3407,48 @@ function pollRemoteIce(iceKey) {
 }
 
 function startIncomingCallPoll() {
-  if (!me) return;
-  setInterval(() => {
+  // Déjà un poll actif ?
+  if (window._incomingCallInterval) return;
+  window._incomingCallInterval = setInterval(() => {
     if (!me) return;
     const keys = Object.keys(localStorage).filter(k => k.startsWith('nova_sig_') && k.endsWith('_offer'));
     for (const k of keys) {
       try {
-        const offer = JSON.parse(localStorage.getItem(k) || '{}');
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        const offer = JSON.parse(raw);
         if (offer.calleeUid !== me.uid) continue;
         if (Date.now() - offer.ts > 30000) { localStorage.removeItem(k); continue; }
         if (document.getElementById('call-screen').classList.contains('active')) continue;
         if (document.getElementById('call-incoming').classList.contains('active')) continue;
         const cid = k.replace('nova_sig_', '').replace('_offer', '');
         const status = readSig(cid, 'status');
-        if (status?.state === 'ended' || status?.state === 'declined') continue;
+        if (status?.state === 'ended' || status?.state === 'declined' || status?.state === 'accepted') continue;
         showIncomingCall(offer.callerName, offer.callType || 'video', cid, offer);
         break;
       } catch(_) {}
     }
-  }, 1000);
+  }, 800);
 }
 
 function showIncomingCall(callerName, callType, cid, offerData) {
   _callCid = cid;
   _callType = callType;
   window._pendingOffer = offerData;
-  document.getElementById('ci-av').textContent = initials(callerName);
-  document.getElementById('ci-name').textContent = callerName;
-  document.getElementById('ci-type').textContent = callType === 'video' ? '📹 Appel vidéo entrant' : '📞 Appel vocal entrant';
+
+  // Remplir les infos
+  const ciAv = document.getElementById('ci-av');
+  const ciName = document.getElementById('ci-name');
+  const ciType = document.getElementById('ci-type');
+
+  if (ciAv) ciAv.textContent = initials(callerName);
+  if (ciName) ciName.textContent = callerName || 'Inconnu';
+  if (ciType) {
+    ciType.innerHTML = callType === 'video'
+      ? '<div class="ci-type-dot"></div>📹 Appel vidéo entrant'
+      : '<div class="ci-type-dot"></div>📞 Appel vocal entrant';
+  }
+
   document.getElementById('call-incoming').classList.add('active');
   startRinging();
   if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400]);
@@ -3431,9 +3604,6 @@ function toggleLocalVideo() {
 }
 
 Object.assign(window, { startCall, acceptCall, declineCall, endCall, toggleMute, toggleCamInCall, toggleSpeaker, flipCallCam, toggleLocalVideo });
-
-// Démarrer le poll appels entrants
-startIncomingCallPoll();
 
 // ═══════════════════════════════
 // SONS — Web Audio API
