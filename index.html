@@ -1633,11 +1633,21 @@ function bnav(el, tab) {
 // ═══════════════════════════════
 // FIREBASE
 // ═══════════════════════════════
+// ── CONFIG FIREBASE — intégrée directement ──
+const NOVA_FB_CONFIG = {
+  apiKey: "AIzaSyAiVSi9Tko909jp5FCajDST9bQ8PipEDwI",
+  authDomain: "nova-ae882.firebaseapp.com",
+  projectId: "nova-ae882",
+  storageBucket: "nova-ae882.firebasestorage.app",
+  messagingSenderId: "202970007105",
+  appId: "1:202970007105:web:4514c5805cf185c9dde8c0",
+  measurementId: "G-P8G9F2KEDG"
+};
+
 function loadFbFields() {
-  const c = JSON.parse(localStorage.getItem('nova_fb') || '{}');
   ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId'].forEach(k => {
     const el = document.getElementById('fb-' + k);
-    if (el && c[k]) el.value = c[k];
+    if (el) el.value = NOVA_FB_CONFIG[k] || '';
   });
 }
 
@@ -1650,8 +1660,11 @@ function saveFb() {
 }
 
 async function tryAutoConnect() {
-  const c = JSON.parse(localStorage.getItem('nova_fb') || '{}');
-  if (c.apiKey && c.projectId) { try { await initFb(c); } catch(_) {} }
+  try {
+    await initFb(NOVA_FB_CONFIG);
+  } catch(e) {
+    console.warn('Firebase:', e.message);
+  }
 }
 
 async function connectFb() {
@@ -1674,24 +1687,50 @@ async function connectFb() {
 
 async function initFb(cfg) {
   const { initializeApp, getApps, getApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-  const { getFirestore } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+  const { getFirestore, enableNetwork } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
   const { getAuth, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+
   const app = getApps().length ? getApp() : initializeApp(cfg);
   const auth = getAuth(app);
   const db = getFirestore(app);
   fb = { auth, db };
+
+  // Activer le réseau Firestore
+  try { await enableNetwork(db); } catch(_) {}
+
   onAuthStateChanged(auth, fbUser => {
     if (fbUser) {
-      me = { uid:fbUser.uid, email:fbUser.email, displayName:fbUser.displayName||fbUser.email.split('@')[0], username:me?.username||'', photoURL:fbUser.photoURL||'' };
-      localStorage.setItem('nova_me', JSON.stringify(me));
-      goHome();
+      me = {
+        uid: fbUser.uid,
+        email: fbUser.email,
+        displayName: fbUser.displayName || fbUser.email.split('@')[0],
+        username: me?.username || '',
+        photoURL: fbUser.photoURL || ''
+      };
+      // Récupérer le username depuis Firestore si dispo
+      import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(({ doc, getDoc }) => {
+        getDoc(doc(db, 'users', fbUser.uid)).then(snap => {
+          if (snap.exists()) {
+            const data = snap.data();
+            me.username = data.username || me.username;
+            me.displayName = data.displayName || me.displayName;
+          }
+          localStorage.setItem('nova_me', JSON.stringify(me));
+          goHome();
+        }).catch(() => {
+          localStorage.setItem('nova_me', JSON.stringify(me));
+          goHome();
+        });
+      });
     } else {
-      const cur = getCurrentId();
+      const cur = screenHistory[screenHistory.length - 1];
       if (!['s-splash','s-login','s-register','s-setup'].includes(cur)) S('s-splash');
     }
   });
+
   setFbLed(true);
-  document.getElementById('s-fb').textContent = 'Connecté ✓';
+  const sfb = document.getElementById('s-fb');
+  if (sfb) sfb.textContent = '🟢 Connecté — nova-ae882';
 }
 
 function setFbLed(ok) {
