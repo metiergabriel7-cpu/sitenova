@@ -1895,8 +1895,9 @@ let _unsubUser = null;
 async function startRealtimeSync() {
   if (_syncInterval) clearInterval(_syncInterval);
   if (_unsubUser) { _unsubUser(); _unsubUser = null; }
+
+  // ── Mode local ──
   if (!fb?.db) {
-    // Initialiser avec les demandes DÉJÀ existantes (pour ne pas les notifier au boot)
     const _initUsers = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const _initMyData = _initUsers.find(u => u.uid === me?.uid);
     let _lastKnownReqs = [...(_initMyData?.friendRequests || [])];
@@ -1906,11 +1907,9 @@ async function startRealtimeSync() {
       const myData = users.find(u => u.uid === me?.uid);
       const reqs = myData?.friendRequests || [];
 
-      // Badge point rouge
       const dot = document.getElementById('req-dot');
       if (dot) dot.style.display = reqs.length > 0 ? 'block' : 'none';
 
-      // Nouvelles demandes = celles qui n'étaient pas là avant
       const newReqs = reqs.filter(uid => !_lastKnownReqs.includes(uid));
       if (newReqs.length > 0) {
         newReqs.forEach(uid => {
@@ -1920,40 +1919,60 @@ async function startRealtimeSync() {
       }
       _lastKnownReqs = [...reqs];
 
-      const cur = getCurrentId();
-      if (cur === 's-friends') loadFriends();
+      if (getCurrentId() === 's-friends') loadFriends();
     }, 1000);
     return;
   }
 
-  // Firebase
-  const { doc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+  // ── Mode Firebase — écoute en temps réel ──
+  const { doc, collection, query, where, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+  // 1. Écouter le profil utilisateur (amis, demandes)
   let _fbFirstLoad = true;
   let _fbLastReqs = [];
   _unsubUser = onSnapshot(doc(fb.db, 'users', me.uid), snap => {
     if (!snap.exists()) return;
     const data = snap.data();
     myFriendIds = data.friends || [];
-    const reqs = data.friendRequests || [];
+
+    // Normaliser friendRequests (peut être array d'UIDs ou d'objets)
+    const reqs = (data.friendRequests || []).map(r => typeof r === 'string' ? r : r.uid);
     const dot = document.getElementById('req-dot');
     if (dot) dot.style.display = reqs.length > 0 ? 'block' : 'none';
-    document.getElementById('p-friends').textContent = myFriendIds.length;
-    if (!_fbFirstLoad) {
-      const newReqs = reqs.filter(uid => !_fbLastReqs.includes(uid));
-      if (newReqs.length > 0) {
-        newReqs.forEach(async uid => {
-          try {
-            const { getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-            const s = await getDoc(doc(fb.db, 'users', uid));
-            if (s.exists()) showFriendRequestNotif({ uid, ...s.data() });
-          } catch(_) {}
-        });
-      }
-    }
+    const pf = document.getElementById('p-friends');
+    if (pf) pf.textContent = myFriendIds.length;
+
+    if (getCurrentId() === 's-friends') loadFriends();
     _fbLastReqs = [...reqs];
     _fbFirstLoad = false;
-    if (getCurrentId() === 's-friends') loadFriends();
   });
+
+  // 2. Écouter les notifications en temps réel (demandes d'amis)
+  let _notifFirstLoad = true;
+  const notifQuery = query(
+    collection(fb.db, 'notifications'),
+    where('toUid', '==', me.uid),
+    where('read', '==', false)
+  );
+
+  const unsubNotif = onSnapshot(notifQuery, snap => {
+    if (_notifFirstLoad) { _notifFirstLoad = false; return; } // ignorer au boot
+    snap.docChanges().forEach(change => {
+      if (change.type === 'added') {
+        const n = change.doc.data();
+        if (n.type === 'friendRequest') {
+          showFriendRequestNotif({
+            uid: n.fromUid,
+            displayName: n.fromName,
+            username: n.fromUsername || '',
+          });
+        }
+      }
+    });
+  });
+
+  // Garder référence pour cleanup
+  window._unsubNotif = unsubNotif;
 }
 
 // ── Notification de demande d'ami reçue ──
@@ -2964,32 +2983,74 @@ function userCard(u) {
 
 async function sendFriendReq(uid, name, btn) {
   if (!me) { toast('Connecte-toi d\'abord', 'err'); return; }
-  btn.disabled = true; btn.textContent = '⏳';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  // ── Mode local (même appareil) ──
   if (!fb?.db) {
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const target = users.find(u => u.uid === uid);
-    if (!target) { toast('Utilisateur introuvable', 'err'); btn.disabled=false; btn.textContent='+ Ajouter'; return; }
+    if (!target) { toast('Utilisateur introuvable', 'err'); if(btn){btn.disabled=false;btn.textContent='+ Ajouter';} return; }
     const myData = users.find(u => u.uid === me.uid);
-    if (myData?.friends?.includes(uid)) { btn.textContent='Amis ✓'; btn.className='btn-done-sm'; toast('Déjà amis !', 'inf'); return; }
-    if (target.friendRequests?.includes(me.uid)) { btn.textContent='Demande envoyée ✓'; btn.className='btn-done-sm'; toast('Demande déjà envoyée', 'inf'); return; }
+    if (myData?.friends?.includes(uid)) { if(btn){btn.textContent='Amis ✓';btn.className='btn-done-sm';} toast('Déjà amis !', 'inf'); return; }
+    if ((target.friendRequests||[]).includes(me.uid)) { if(btn){btn.textContent='Demande envoyée ✓';btn.className='btn-done-sm';} toast('Demande déjà envoyée', 'inf'); return; }
     target.friendRequests = [...(target.friendRequests||[]), me.uid];
     localStorage.setItem('nova_users', JSON.stringify(users));
-    btn.textContent = 'Demande envoyée ✓'; btn.className = 'btn-done-sm';
+    if(btn){btn.textContent='Demande envoyée ✓';btn.className='btn-done-sm';}
+    playSound('ok');
     toast(`👋 Demande envoyée à ${name} !`, 'ok');
     return;
   }
+
+  // ── Mode Firebase (multi-appareils) ──
   try {
-    const { doc, getDoc, updateDoc, arrayUnion } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    const { doc, getDoc, updateDoc, setDoc, arrayUnion, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    // Vérifier si déjà amis ou demande déjà envoyée
     const snap = await getDoc(doc(fb.db, 'users', uid));
     if (snap.exists()) {
       const d = snap.data();
-      if (d.friends?.includes(me.uid)) { btn.textContent='Amis ✓'; btn.className='btn-done-sm'; toast('Vous êtes déjà amis', 'inf'); return; }
-      if (d.friendRequests?.includes(me.uid)) { btn.textContent='Demande envoyée ✓'; btn.className='btn-done-sm'; toast('Demande déjà envoyée', 'inf'); return; }
+      if ((d.friends||[]).includes(me.uid)) {
+        if(btn){btn.textContent='Amis ✓';btn.className='btn-done-sm';}
+        toast('Vous êtes déjà amis', 'inf'); return;
+      }
+      if ((d.friendRequests||[]).some(r => r.uid === me.uid || r === me.uid)) {
+        if(btn){btn.textContent='Demande envoyée ✓';btn.className='btn-done-sm';}
+        toast('Demande déjà envoyée', 'inf'); return;
+      }
     }
-    await updateDoc(doc(fb.db, 'users', uid), { friendRequests:arrayUnion(me.uid) });
-    btn.textContent = 'Demande envoyée ✓'; btn.className = 'btn-done-sm';
+
+    // Stocker la demande avec les infos complètes de l'expéditeur
+    const reqData = {
+      uid: me.uid,
+      displayName: me.displayName,
+      username: me.username || '',
+      email: me.email || '',
+      sentAt: serverTimestamp(),
+    };
+
+    // Ajouter dans friendRequests de la cible (avec infos complètes)
+    await updateDoc(doc(fb.db, 'users', uid), {
+      friendRequests: arrayUnion(reqData)
+    });
+
+    // Créer une notification séparée pour un push en temps réel
+    await setDoc(doc(fb.db, 'notifications', `${uid}_fr_${me.uid}`), {
+      type: 'friendRequest',
+      toUid: uid,
+      fromUid: me.uid,
+      fromName: me.displayName,
+      fromUsername: me.username || '',
+      createdAt: serverTimestamp(),
+      read: false,
+    });
+
+    if(btn){btn.textContent='Demande envoyée ✓';btn.className='btn-done-sm';}
+    playSound('ok');
     toast(`👋 Demande envoyée à ${name} !`, 'ok');
-  } catch(e) { toast('Erreur: ' + e.message, 'err'); btn.disabled=false; btn.textContent='+ Ajouter'; }
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'err');
+    if(btn){btn.disabled=false;btn.textContent='+ Ajouter';}
+  }
 }
 
 async function loadFriends() {
@@ -3068,44 +3129,74 @@ async function loadFriends() {
     const snap = await getDoc(doc(fb.db, 'users', me.uid));
     if (!snap.exists()) return;
     const data = snap.data();
-    const reqs = data.friendRequests || [];
-    document.getElementById('req-dot').style.display = reqs.length ? 'block' : 'none';
+
+    // Normaliser friendRequests — peut être array d'UIDs (string) ou d'objets {uid, displayName...}
+    const rawReqs = data.friendRequests || [];
+    const reqs = rawReqs.map(r => {
+      if (typeof r === 'string') return { uid: r, displayName: r, username: '' };
+      return r; // déjà un objet avec uid, displayName, username
+    });
+
+    const dot = document.getElementById('req-dot');
+    if (dot) dot.style.display = reqs.length ? 'block' : 'none';
+
+    // Demandes envoyées (chercher dans les autres users)
+    // Pour Firebase : on regarde dans les notifications
+    if (sentEl) sentEl.innerHTML = `<div style="font-size:13px;color:var(--t3);padding:8px 4px">Va dans "Ajouter un ami" pour envoyer des demandes</div>`;
+
+    // Demandes reçues
     if (!reqs.length) {
-      reqEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 20px;text-align:center"><div style="font-size:36px;opacity:.3">👋</div><div style="font-size:14px;color:var(--t3)">Aucune demande en attente</div></div>`;
+      reqEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 20px;text-align:center"><div style="font-size:36px;opacity:.3">👋</div><div style="font-size:14px;color:var(--t3)">Aucune demande reçue</div></div>`;
     } else {
-      const cards = await Promise.all(reqs.map(async uid => {
-        const s = await getDoc(doc(fb.db, 'users', uid));
-        if (!s.exists()) return '';
-        const u = s.data();
-        return `<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)">
-          <div class="av s52" style="flex-shrink:0">${initials(u.displayName||'?')}</div>
-          <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;margin-bottom:2px">${x(u.displayName||'Utilisateur')}</div><div style="font-size:12px;color:var(--t2)">@${x(u.username||'')}</div></div>
-          <div style="display:flex;gap:7px;flex-shrink:0">
-            <button onclick="rejectFriend('${uid}',this)" style="width:36px;height:36px;border-radius:12px;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);color:var(--red);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
-            <button onclick="acceptFriend('${uid}','${x(u.displayName)}','${x(u.username)}',this)" style="padding:0 16px;height:36px;border-radius:12px;background:linear-gradient(135deg,#6c63ff,#a78bfa);border:none;color:#fff;cursor:pointer;font-family:var(--ff);font-size:13px;font-weight:700;white-space:nowrap">Accepter ✓</button>
-          </div>
-        </div>`;
+      // Enrichir avec les profils Firestore si nécessaire
+      const enriched = await Promise.all(reqs.map(async r => {
+        if (r.displayName && r.displayName !== r.uid) return r; // déjà enrichi
+        try {
+          const s = await getDoc(doc(fb.db, 'users', r.uid));
+          if (s.exists()) return { uid: r.uid, ...s.data() };
+        } catch(_) {}
+        return r;
       }));
-      reqEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">${cards.join('')}</div>`;
+
+      reqEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">` +
+        enriched.filter(u => u.uid).map(u => `
+          <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)">
+            <div class="av s52" style="flex-shrink:0">${initials(u.displayName||'?')}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:15px;font-weight:700;margin-bottom:2px">${x(u.displayName||'Utilisateur')}</div>
+              <div style="font-size:12px;color:var(--t2)">@${x(u.username||'')}</div>
+            </div>
+            <div style="display:flex;gap:7px;flex-shrink:0">
+              <button onclick="rejectFriend('${u.uid}',this)" style="width:36px;height:36px;border-radius:12px;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);color:var(--red);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
+              <button onclick="acceptFriend('${u.uid}','${x(u.displayName||'')}','${x(u.username||'')}',this)" style="padding:0 16px;height:36px;border-radius:12px;background:linear-gradient(135deg,#6c63ff,#a78bfa);border:none;color:#fff;cursor:pointer;font-family:var(--ff);font-size:13px;font-weight:700;white-space:nowrap">✓ Accepter</button>
+            </div>
+          </div>`).join('') + `</div>`;
     }
+
+    // Mes amis
     myFriendIds = data.friends || [];
-    document.getElementById('p-friends').textContent = myFriendIds.length;
+    const pf = document.getElementById('p-friends');
+    if (pf) pf.textContent = myFriendIds.length;
+
     if (!myFriendIds.length) {
       listEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:32px 20px;text-align:center"><div style="font-size:42px;opacity:.25">👥</div><div style="font-size:15px;font-weight:700;color:var(--t2)">Aucun ami pour l'instant</div><button onclick="S('s-addfriend')" style="margin-top:4px;padding:11px 24px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:14px;font-weight:700">+ Ajouter un ami</button></div>`;
       return;
     }
+
     const fcards = await Promise.all(myFriendIds.map(async uid => {
-      const s = await getDoc(doc(fb.db, 'users', uid));
-      if (!s.exists()) return '';
-      const u = s.data();
-      return `<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openConv('${uid}','${x(u.displayName||'Utilisateur')}','${x(u.username||'')}','${convKey(me.uid,uid)}')">
-        <div style="position:relative;flex-shrink:0"><div class="av s52">${initials(u.displayName||'?')}</div><div style="position:absolute;bottom:2px;right:2px;width:12px;height:12px;border-radius:50%;background:var(--green);border:2.5px solid var(--bg1)"></div></div>
-        <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;margin-bottom:2px">${x(u.displayName||'Utilisateur')}</div><div style="font-size:12px;color:var(--t2)">@${x(u.username||'')}</div></div>
-        <div onclick="event.stopPropagation();openConv('${uid}','${x(u.displayName||'Utilisateur')}','${x(u.username||'')}','${convKey(me.uid,uid)}')" style="padding:0 16px;height:36px;border-radius:12px;background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.3);color:var(--e2);cursor:pointer;font-family:var(--ff);font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px;flex-shrink:0">💬 Parler</div>
-      </div>`;
+      try {
+        const s = await getDoc(doc(fb.db, 'users', uid));
+        if (!s.exists()) return '';
+        const u = s.data();
+        return `<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openConv('${uid}','${x(u.displayName||'Utilisateur')}','${x(u.username||'')}','${convKey(me.uid,uid)}')">
+          <div style="position:relative;flex-shrink:0"><div class="av s52">${initials(u.displayName||'?')}</div><div style="position:absolute;bottom:2px;right:2px;width:12px;height:12px;border-radius:50%;background:var(--green);border:2.5px solid var(--bg1)"></div></div>
+          <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;margin-bottom:2px">${x(u.displayName||'Utilisateur')}</div><div style="font-size:12px;color:var(--t2)">@${x(u.username||'')}</div></div>
+          <div onclick="event.stopPropagation();openConv('${uid}','${x(u.displayName||'Utilisateur')}','${x(u.username||'')}','${convKey(me.uid,uid)}')" style="padding:0 16px;height:36px;border-radius:12px;background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.3);color:var(--e2);cursor:pointer;font-family:var(--ff);font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px;flex-shrink:0">💬 Parler</div>
+        </div>`;
+      } catch(_) { return ''; }
     }));
-    listEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">${fcards.join('')}</div>`;
-  } catch(e) { reqEl.innerHTML = `<div class="search-info" style="color:var(--red)">Erreur: ${x(e.message)}</div>`; }
+    listEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">${fcards.filter(Boolean).join('')}</div>`;
+  } catch(e) { if(reqEl) reqEl.innerHTML = `<div class="search-info" style="color:var(--red)">Erreur: ${x(e.message)}</div>`; }
 }
 
 async function acceptFriend(uid, name, username, btn) {
@@ -3114,34 +3205,89 @@ async function acceptFriend(uid, name, username, btn) {
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const me_ = users.find(u => u.uid === me.uid);
     const other = users.find(u => u.uid === uid);
-    if (me_) { me_.friends=[...new Set([...(me_.friends||[]),uid])]; me_.friendRequests=(me_.friendRequests||[]).filter(r=>r!==uid); }
-    if (other) { other.friends=[...new Set([...(other.friends||[]),me.uid])]; }
+    if (me_) {
+      me_.friends = [...new Set([...(me_.friends||[]), uid])];
+      me_.friendRequests = (me_.friendRequests||[]).filter(r => r !== uid);
+    }
+    if (other) other.friends = [...new Set([...(other.friends||[]), me.uid])];
     localStorage.setItem('nova_users', JSON.stringify(users));
     myFriendIds = me_?.friends || [];
 
-    // Créer une conversation vide pour qu'il apparaisse dans les messages
+    // Créer conv automatiquement
     const cid = convKey(me.uid, uid);
-    const existing = getLocalMsgs(cid);
-    if (!existing.length) {
-      // Ajouter un message système invisible pour créer la conv
-      const sysMsg = { from: 'system', text: `👋 Vous êtes maintenant amis !`, type: 'system', ts: new Date().toISOString(), status: 'read' };
-      localStorage.setItem('nova_msgs_' + cid, JSON.stringify([sysMsg]));
+    if (!getLocalMsgs(cid).length) {
+      localStorage.setItem('nova_msgs_' + cid, JSON.stringify([
+        { from:'system', text:`👋 Vous êtes maintenant amis !`, type:'system', ts: new Date().toISOString(), status:'read' }
+      ]));
     }
-
     playSound('ok');
     toast(`🤝 ${name} est maintenant ton ami !`, 'ok');
     loadFriends();
-    loadConversations(); // ← rafraîchir la liste des messages
+    loadConversations();
     return;
   }
+
+  // Firebase
   try {
-    const { doc, updateDoc, arrayUnion, arrayRemove } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-    await updateDoc(doc(fb.db,'users',me.uid), { friends:arrayUnion(uid), friendRequests:arrayRemove(uid) });
-    await updateDoc(doc(fb.db,'users',uid), { friends:arrayUnion(me.uid) });
+    const { doc, updateDoc, arrayUnion, arrayRemove, deleteDoc, setDoc, serverTimestamp, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+    // Récupérer les vraies infos de l'ami
+    let friendData = { displayName: name, username: username || '' };
+    try {
+      const snap = await getDoc(doc(fb.db, 'users', uid));
+      if (snap.exists()) friendData = snap.data();
+    } catch(_) {}
+
+    // Ajouter comme amis des deux côtés
+    await updateDoc(doc(fb.db, 'users', me.uid), {
+      friends: arrayUnion(uid),
+      // Supprimer la demande (qu'elle soit un objet ou un string)
+      friendRequests: arrayRemove(uid),
+    });
+    // Supprimer aussi si c'est un objet
+    const mySnap = await getDoc(doc(fb.db, 'users', me.uid));
+    if (mySnap.exists()) {
+      const reqs = mySnap.data().friendRequests || [];
+      const objReq = reqs.find(r => typeof r === 'object' && r.uid === uid);
+      if (objReq) await updateDoc(doc(fb.db, 'users', me.uid), { friendRequests: arrayRemove(objReq) });
+    }
+
+    await updateDoc(doc(fb.db, 'users', uid), {
+      friends: arrayUnion(me.uid),
+    });
+
+    // Supprimer la notification
+    try {
+      await deleteDoc(doc(fb.db, 'notifications', `${me.uid}_fr_${uid}`));
+    } catch(_) {}
+
+    // Créer la conversation automatiquement dans Firestore
+    const cid = convKey(me.uid, uid);
+    const convRef = doc(fb.db, 'conversations', cid);
+    const convSnap = await getDoc(convRef);
+    if (!convSnap.exists()) {
+      await setDoc(convRef, {
+        participants: [me.uid, uid],
+        pData: {
+          [me.uid]: { displayName: me.displayName, username: me.username || '' },
+          [uid]: { displayName: friendData.displayName, username: friendData.username || '' },
+        },
+        lastText: '👋 Vous êtes maintenant amis !',
+        lastTime: serverTimestamp(),
+        unread: { [me.uid]: 0, [uid]: 0 },
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    myFriendIds = [...(myFriendIds || []), uid];
     playSound('ok');
     toast(`🤝 ${name} et toi êtes maintenant amis !`, 'ok');
     loadFriends();
-  } catch(e) { toast(e.message, 'err'); if (btn) btn.disabled=false; }
+    loadConversations();
+  } catch(e) {
+    toast('Erreur: ' + e.message, 'err');
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function rejectFriend(uid, btn) {
