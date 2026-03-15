@@ -3023,7 +3023,10 @@ async function sendFriendReq(uid, name, btn) {
 
     // Stocker juste l'UID dans friendRequests (pas d'objet = pas d'erreur)
     await updateDoc(doc(fb.db, 'users', uid), {
-      friendRequests: arrayUnion(me.uid)
+      friendRequests: arrayUnion(String(me.uid))
+toUid: String(uid),
+fromUid: String(me.uid),
+fromName: String(me.displayName || ''),
     });
 
     // Notification séparée avec les infos complètes
