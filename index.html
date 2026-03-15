@@ -2871,21 +2871,78 @@ async function searchUsers(q, targetId) {
   if (!target) return;
   const term = q.trim().toLowerCase().replace(/^@/, '');
   if (term.length < 2) { target.innerHTML = ''; return; }
-  target.innerHTML = '<div class="search-info">Recherche en cours...</div>';
+  target.innerHTML = '<div class="search-info">🔍 Recherche en cours...</div>';
+
   if (!fb?.db) {
+    // Mode local — chercher dans nova_users
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
-    const res = users.filter(u => u.uid !== me?.uid && (u.username?.toLowerCase().includes(term) || u.displayName?.toLowerCase().includes(term)));
-    target.innerHTML = res.length ? res.map(u => userCard(u)).join('') : `<div class="search-info">Aucun résultat pour "@${x(term)}"</div>`;
+    const res = users.filter(u =>
+      u.uid !== me?.uid &&
+      (
+        u.username?.toLowerCase().includes(term) ||
+        u.displayName?.toLowerCase().includes(term) ||
+        u.email?.toLowerCase().includes(term)
+      )
+    );
+    if (!res.length) {
+      target.innerHTML = `<div class="search-info">
+        <div style="margin-bottom:8px">Aucun résultat pour "<strong>${x(term)}</strong>"</div>
+        <div style="font-size:12px;color:var(--t4);line-height:1.6">⚠️ En mode local, tu ne peux trouver que des comptes créés sur <strong>cet appareil</strong>.<br>Pour trouver des amis sur d'autres appareils, configure <strong>Firebase</strong> dans les paramètres.</div>
+      </div>`;
+    } else {
+      target.innerHTML = res.map(u => userCard(u)).join('');
+    }
     return;
   }
+
+  // Firebase — recherche large
   try {
-    const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    const { collection, query, where, getDocs, orderBy, limit } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
     const results = new Map();
-    const q1 = query(collection(fb.db, 'users'), where('username', '>=', term), where('username', '<=', term + '\uf8ff'));
-    const s1 = await getDocs(q1);
-    s1.forEach(d => { if (d.id !== me.uid) results.set(d.id, { uid:d.id, ...d.data() }); });
+
+    // 1. Chercher par username (commence par le terme)
+    try {
+      const q1 = query(
+        collection(fb.db, 'users'),
+        where('username', '>=', term),
+        where('username', '<=', term + '\uf8ff'),
+        limit(10)
+      );
+      const s1 = await getDocs(q1);
+      s1.forEach(d => { if (d.id !== me.uid) results.set(d.id, { uid: d.id, ...d.data() }); });
+    } catch(_) {}
+
+    // 2. Chercher par displayName (commence par le terme, majuscule)
+    const termCap = term.charAt(0).toUpperCase() + term.slice(1);
+    try {
+      const q2 = query(
+        collection(fb.db, 'users'),
+        where('displayName', '>=', termCap),
+        where('displayName', '<=', termCap + '\uf8ff'),
+        limit(10)
+      );
+      const s2 = await getDocs(q2);
+      s2.forEach(d => { if (d.id !== me.uid && !results.has(d.id)) results.set(d.id, { uid: d.id, ...d.data() }); });
+    } catch(_) {}
+
+    // 3. Chercher par displayName minuscule
+    try {
+      const q3 = query(
+        collection(fb.db, 'users'),
+        where('displayName', '>=', term),
+        where('displayName', '<=', term + '\uf8ff'),
+        limit(10)
+      );
+      const s3 = await getDocs(q3);
+      s3.forEach(d => { if (d.id !== me.uid && !results.has(d.id)) results.set(d.id, { uid: d.id, ...d.data() }); });
+    } catch(_) {}
+
     const arr = [...results.values()];
-    target.innerHTML = arr.length ? arr.map(u => userCard(u)).join('') : `<div class="search-info">Aucun résultat pour "@${x(term)}"</div>`;
+    if (!arr.length) {
+      target.innerHTML = `<div class="search-info">Aucun résultat pour "<strong>${x(term)}</strong>"<br><span style="font-size:12px;color:var(--t4)">Assure-toi que ton ami a créé un compte NOVA</span></div>`;
+    } else {
+      target.innerHTML = arr.map(u => userCard(u)).join('');
+    }
   } catch(e) {
     target.innerHTML = `<div class="search-info" style="color:var(--red)">Erreur: ${x(e.message)}</div>`;
   }
