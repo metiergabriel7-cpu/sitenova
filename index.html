@@ -1124,7 +1124,13 @@ const firebaseConfig = {
 <!-- ═══════════ HOME ═══════════ -->
 <div class="screen hidden" id="s-home">
   <div class="hbar">
-    <div class="hbar-title"><span class="accent">NOVA</span></div>
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+      <div id="home-av" onclick="S('s-profile');renderProfile()" style="width:36px;height:36px;border-radius:12px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;cursor:pointer;flex-shrink:0;overflow:hidden"></div>
+      <div style="flex:1;min-width:0">
+        <div id="home-name" style="font-size:16px;font-weight:800;color:var(--t1);font-family:var(--ff);line-height:1.2;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Messagerie</div>
+        <div id="home-friends-btn" onclick="S('s-friends');loadFriends()" style="font-size:12px;color:var(--e2);font-weight:600;cursor:pointer;font-family:var(--ff)">0 ami</div>
+      </div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center">
       <div style="width:10px;height:10px;border-radius:50%;background:var(--red)" id="fb-led" title="Firebase non configuré"></div>
       <div class="ibtn" onclick="S('s-newchat')" title="Nouveau message">
@@ -1137,7 +1143,7 @@ const firebaseConfig = {
       <span class="search-icon">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </span>
-      <input placeholder="Rechercher une conversation..." oninput="filterConvs(this.value)">
+      <input placeholder="Rechercher..." oninput="filterConvs(this.value)">
     </div>
   </div>
   <div class="scr">
@@ -1889,12 +1895,53 @@ function goHome() {
   const home = document.getElementById('s-home');
   if (home) home.classList.remove('hidden');
   screenHistory = ['s-home'];
+
+  // Remplir le header avec le nom et les amis
+  updateHomeHeader();
+
   setTimeout(() => {
     loadConversations();
     startRealtimeSync();
-    startIncomingCallPoll(); // ← démarre ICI quand me est défini
+    startIncomingCallPoll();
   }, 50);
 }
+
+function updateHomeHeader() {
+  if (!me) return;
+  const n = me.displayName || 'Moi';
+
+  // Avatar
+  const av = document.getElementById('home-av');
+  if (av) {
+    const avatarUrl = localStorage.getItem('nova_avatar_' + me.uid);
+    if (avatarUrl) {
+      av.innerHTML = `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`;
+    } else {
+      av.textContent = initials(n);
+    }
+  }
+
+  // Nom
+  const nameEl = document.getElementById('home-name');
+  if (nameEl) nameEl.textContent = n;
+
+  // Amis — compter depuis localStorage ou myFriendIds
+  updateHomeFriendsCount();
+}
+
+function updateHomeFriendsCount() {
+  const btn = document.getElementById('home-friends-btn');
+  if (!btn || !me) return;
+  let count = myFriendIds.length;
+  if (count === 0) {
+    // Essayer depuis localStorage
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    const myData = users.find(u => u.uid === me.uid);
+    count = (myData?.friends || []).length;
+  }
+  btn.textContent = count === 0 ? 'Ajouter des amis →' : `${count} ami${count > 1 ? 's' : ''}`;
+}
+window.updateHomeFriendsCount = updateHomeFriendsCount;
 
 let _syncInterval = null;
 let _unsubUser = null;
@@ -1942,12 +1989,14 @@ async function startRealtimeSync() {
     const data = snap.data();
     myFriendIds = data.friends || [];
 
-    // Normaliser friendRequests (peut être array d'UIDs ou d'objets)
+    // Normaliser friendRequests
     const reqs = (data.friendRequests || []).map(r => typeof r === 'string' ? r : r.uid);
     const dot = document.getElementById('req-dot');
     if (dot) dot.style.display = reqs.length > 0 ? 'block' : 'none';
     const pf = document.getElementById('p-friends');
     if (pf) pf.textContent = myFriendIds.length;
+    // Mettre à jour le compteur dans le header home
+    updateHomeFriendsCount();
 
     if (getCurrentId() === 's-friends') loadFriends();
     _fbLastReqs = [...reqs];
@@ -2247,7 +2296,14 @@ async function loadConversations() {
     });
 
     if (!convItems.length) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Aucune conversation</div><div class="empty-sub">Commence par ajouter des amis,<br>puis envoie-leur un message !</div><button class="empty-cta" onclick="S('s-friends')">Trouver des amis →</button></div>`;
+      // Aucun ami du tout → message centré avec bouton
+      container.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 30px;text-align:center;gap:16px;height:100%">
+          <div style="font-size:56px">👥</div>
+          <div style="font-size:19px;font-weight:800;color:var(--t1);font-family:var(--ff)">Aucun ami pour l'instant</div>
+          <div style="font-size:14px;color:var(--t3);line-height:1.6">Ajoute des amis pour commencer<br>à discuter avec eux !</div>
+          <button onclick="S('s-friends');loadFriends()" style="margin-top:8px;padding:14px 28px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700;box-shadow:0 4px 20px rgba(108,99,255,.4)">+ Ajouter des amis</button>
+        </div>`;
       return;
     }
     // Trier: conversations récentes d'abord, amis sans message après
@@ -4051,54 +4107,75 @@ let _isSharing = false;
 
 async function toggleScreenShare() {
   const btn = document.getElementById('btn-screen');
+
   if (_isSharing) {
-    // Arrêter le partage — revenir à la caméra
     _isSharing = false;
     if (_screenStream) { _screenStream.getTracks().forEach(t => t.stop()); _screenStream = null; }
     if (btn) { btn.querySelector('.call-btn-ic').textContent = '🖥️'; btn.querySelector('.call-btn-lbl').textContent = 'Écran'; btn.classList.remove('on'); }
-    // Revenir à la caméra si dispo
+    // Revenir miniature caméra
+    const lv = document.getElementById('call-local-video');
+    if (lv && _localStream) { lv.srcObject = _localStream; lv.style.display = _callType === 'video' ? 'block' : 'none'; lv.onclick = null; lv.style.cursor = ''; }
+    const lbl = document.getElementById('call-local-label');
+    if (lbl) lbl.textContent = 'Moi';
     if (_localStream && _pc) {
-      const videoTrack = _localStream.getVideoTracks()[0];
-      if (videoTrack) {
-        const sender = _pc.getSenders().find(s => s.track?.kind === 'video');
-        if (sender) await sender.replaceTrack(videoTrack);
-      }
+      const vt = _localStream.getVideoTracks()[0];
+      if (vt) { const s = _pc.getSenders().find(s => s.track?.kind === 'video'); if (s) await s.replaceTrack(vt); }
     }
-    toast('Partage d\'écran arrêté', 'inf');
+    toast("Partage d'écran arrêté", 'inf');
     return;
   }
 
-  // Démarrer le partage d'écran
   try {
     _screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
     const screenTrack = _screenStream.getVideoTracks()[0];
 
-    // Remplacer la piste vidéo dans la connexion WebRTC
+    // Envoyer l'écran via WebRTC à l'autre
     if (_pc) {
       const sender = _pc.getSenders().find(s => s.track?.kind === 'video');
       if (sender) await sender.replaceTrack(screenTrack);
-      else {
-        // Pas encore de piste vidéo → ajouter
-        _pc.addTrack(screenTrack, _screenStream);
-      }
+      else _pc.addTrack(screenTrack, _screenStream);
     }
 
-    // Afficher dans la miniature locale
+    // Miniature locale = ta caméra (pas l'écran)
     const lv = document.getElementById('call-local-video');
-    if (lv) { lv.srcObject = _screenStream; lv.style.display = 'block'; }
+    if (lv && _localStream && _localStream.getVideoTracks().length) {
+      lv.srcObject = _localStream;
+      lv.style.display = 'block';
+      lv.style.cursor = 'pointer';
+      lv.title = 'Cliquer pour plein écran';
+      lv.onclick = () => {
+        if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+        else lv.requestFullscreen?.().catch(()=>{});
+      };
+    }
+    const lbl = document.getElementById('call-local-label');
+    if (lbl) lbl.textContent = '📷 Cam';
+
+    // Vidéo distante cliquable = plein écran
+    const rv = document.getElementById('call-remote-video');
+    if (rv) {
+      rv.style.cursor = 'pointer';
+      rv.title = 'Cliquer pour plein écran';
+      rv.onclick = () => {
+        if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+        else rv.requestFullscreen?.().catch(()=>{});
+      };
+    }
 
     _isSharing = true;
     if (btn) { btn.querySelector('.call-btn-ic').textContent = '⏹️'; btn.querySelector('.call-btn-lbl').textContent = 'Stop'; btn.classList.add('on'); }
-    toast('📺 Partage d\'écran actif', 'ok');
+    toast("📺 Partage actif — l'autre voit ton écran, clique pour agrandir", 'ok');
 
-    // Arrêt automatique si l'utilisateur clique "Arrêter le partage" dans le navigateur
     screenTrack.onended = () => {
-      _isSharing = false;
-      _screenStream = null;
+      _isSharing = false; _screenStream = null;
       if (btn) { btn.querySelector('.call-btn-ic').textContent = '🖥️'; btn.querySelector('.call-btn-lbl').textContent = 'Écran'; btn.classList.remove('on'); }
+      const lv2 = document.getElementById('call-local-video');
+      if (lv2 && _localStream) { lv2.srcObject = _localStream; lv2.onclick = null; lv2.style.cursor = ''; }
+      const lbl2 = document.getElementById('call-local-label');
+      if (lbl2) lbl2.textContent = 'Moi';
     };
   } catch(e) {
-    if (e.name !== 'NotAllowedError') toast('Partage d\'écran non disponible', 'err');
+    if (e.name !== 'NotAllowedError') toast("Partage d'écran non disponible", 'err');
   }
 }
 window.toggleScreenShare = toggleScreenShare;
