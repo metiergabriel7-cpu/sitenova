@@ -1590,13 +1590,14 @@ window.addEventListener('load', async () => {
   if (langLbl && langMap[savedLang]) langLbl.textContent = langMap[savedLang];
 
   loadFbFields();
-  await tryAutoConnect();
-  await checkSession();
+  try { await tryAutoConnect(); } catch(_) {}
+  try { await checkSession(); } catch(_) {}
   restoreWallpaper();
+  // Loader disparaît toujours, même si Firebase échoue
   setTimeout(() => {
-    document.getElementById('loader').classList.add('fade');
-    setTimeout(() => { try { document.getElementById('loader').remove() } catch(_){} }, 600);
-  }, 1000);
+    const ld = document.getElementById('loader');
+    if (ld) { ld.classList.add('fade'); setTimeout(() => { try { ld.remove(); } catch(_) {} }, 600); }
+  }, 800);
 });
 
 // ═══════════════════════════════
@@ -1671,10 +1672,13 @@ function saveFb() {
 }
 
 async function tryAutoConnect() {
+  const c = JSON.parse(localStorage.getItem('nova_fb') || '{}');
+  if (!c.apiKey || !c.projectId) return; // pas de config = mode local, on continue
   try {
-    await initFb(NOVA_FB_CONFIG);
+    await initFb(c);
   } catch(e) {
-    console.warn('Firebase:', e.message);
+    console.warn('Firebase auto-connect:', e.message);
+    // Pas bloquant — on continue en mode local
   }
 }
 
