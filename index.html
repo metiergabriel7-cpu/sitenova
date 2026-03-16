@@ -3340,10 +3340,10 @@ async function loadFriends() {
     // ── Demandes REÇUES ──
     const reqUsers = users.filter(u => pendingReqs.includes(u.uid));
     if (!reqUsers.length) {
-      reqEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 20px;text-align:center"><div style="font-size:36px;opacity:.3">👋</div><div style="font-size:14px;color:var(--t3)">Aucune demande reçue</div></div>`;
+      if(reqEl) reqEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 20px;text-align:center"><div style="font-size:36px;opacity:.3">👋</div><div style="font-size:14px;color:var(--t3)">Aucune demande reçue</div></div>`;
     } else {
       document.getElementById('req-dot').style.display = 'block';
-      reqEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">` +
+      if(reqEl) reqEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">` +
         reqUsers.map(u => `<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)">
           <div class="av s52" style="flex-shrink:0">${initials(u.displayName||'?')}</div>
           <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;margin-bottom:2px">${x(u.displayName||'Utilisateur')}</div><div style="font-size:12px;color:var(--t2)">@${x(u.username||'')}</div></div>
@@ -3360,7 +3360,7 @@ async function loadFriends() {
     if (!friends.length) {
       if(listEl)listEl.innerHTML = '<div style="font-size:13px;color:var(--t3);padding:12px 4px">Aucun ami pour l\'instant</div>';
     } else {
-      listEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">` +
+      if(listEl) listEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">` +
         friends.map(u => `<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openConv('${u.uid}','${x(u.displayName)}','${x(u.username)}','')">
           <div style="position:relative;flex-shrink:0"><div class="av s52">${initials(u.displayName||'?')}</div><div style="position:absolute;bottom:2px;right:2px;width:12px;height:12px;border-radius:50%;background:var(--green);border:2.5px solid var(--bg1)"></div></div>
           <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;margin-bottom:2px">${x(u.displayName||'Utilisateur')}</div><div style="font-size:12px;color:var(--t2)">@${x(u.username||'')}</div></div>
@@ -3391,7 +3391,7 @@ async function loadFriends() {
 
     // Demandes reçues
     if (!reqs.length) {
-      reqEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 20px;text-align:center"><div style="font-size:36px;opacity:.3">👋</div><div style="font-size:14px;color:var(--t3)">Aucune demande reçue</div></div>`;
+      if(reqEl) reqEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 20px;text-align:center"><div style="font-size:36px;opacity:.3">👋</div><div style="font-size:14px;color:var(--t3)">Aucune demande reçue</div></div>`;
     } else {
       // Enrichir avec les profils Firestore si nécessaire
       const enriched = await Promise.all(reqs.map(async r => {
@@ -3403,7 +3403,7 @@ async function loadFriends() {
         return r;
       }));
 
-      reqEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">` +
+      if(reqEl) reqEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">` +
         enriched.filter(u => u.uid).map(u => `
           <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border)">
             <div class="av s52" style="flex-shrink:0">${initials(u.displayName||'?')}</div>
@@ -3424,7 +3424,7 @@ async function loadFriends() {
     if (pf) pf.textContent = myFriendIds.length;
 
     if (!myFriendIds.length) {
-      listEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:32px 20px;text-align:center"><div style="font-size:42px;opacity:.25">👥</div><div style="font-size:15px;font-weight:700;color:var(--t2)">Aucun ami pour l'instant</div><button onclick="S('s-addfriend')" style="margin-top:4px;padding:11px 24px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:14px;font-weight:700">+ Ajouter un ami</button></div>`;
+      if(listEl) listEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:32px 20px;text-align:center"><div style="font-size:42px;opacity:.25">👥</div><div style="font-size:15px;font-weight:700;color:var(--t2)">Aucun ami pour l'instant</div><button onclick="S('s-addfriend')" style="margin-top:4px;padding:11px 24px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:14px;font-weight:700">+ Ajouter un ami</button></div>`;
       return;
     }
 
@@ -3440,7 +3440,7 @@ async function loadFriends() {
         </div>`;
       } catch(_) { return ''; }
     }));
-    listEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">${fcards.filter(Boolean).join('')}</div>`;
+    if(listEl) listEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">${fcards.filter(Boolean).join('')}</div>`;
   } catch(e) { if(reqEl) reqEl.innerHTML = `<div class="search-info" style="color:var(--red)">Erreur: ${x(e.message)}</div>`; }
 }
 
