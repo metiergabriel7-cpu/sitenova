@@ -2475,23 +2475,24 @@ async function loadConversations() {
 }
 
 function renderConvItem(uid, name, username, lastMsg, time, unread, cid) {
-  const init = initials(name);
+  // Stocker les données dans un registry global (évite pb apostrophes)
+  window._cvData = window._cvData || {};
+  window._cvData[uid] = { uid, name, username, cvid: cid || convKey(me.uid, uid) };
+
   const cvid = cid || convKey(me.uid, uid);
   const avatarUrl = localStorage.getItem('nova_avatar_' + uid);
   const avContent = avatarUrl
     ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`
-    : init;
+    : initials(name);
   const preview = lastMsg
     ? `<span>${x(lastMsg)}</span>`
     : `<span style="color:var(--e2);font-style:italic">Dis bonjour ! 👋</span>`;
-
-  // Bouton groupe visible si 2+ amis
   const canGroup = myFriendIds.length >= 2;
 
-  return `<div class="cv" data-uid="${uid}" data-name="${x(name)}" data-username="${x(username)}" data-cid="${cvid}"
-    onclick="openConv('${uid}','${x(name)}','${x(username)}','${cvid}')"
-    oncontextmenu="event.preventDefault();openConvMenu('${uid}','${x(name)}','${x(username)}')"
-    ontouchstart="cvTouchStart(this,'${uid}','${x(name)}','${x(username)}')"
+  return `<div class="cv" data-uid="${uid}"
+    onclick="cvClick(this)"
+    oncontextmenu="event.preventDefault();cvMenuClick(this)"
+    ontouchstart="cvTouchStart(this)"
     ontouchend="cvTouchEnd()"
     ontouchmove="cvTouchEnd()">
     <div class="cv-av-wrap" style="position:relative">
@@ -2505,19 +2506,43 @@ function renderConvItem(uid, name, username, lastMsg, time, unread, cid) {
         est en train d'écrire<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>
       </div>
     </div>
-    <div class="cv-side" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
     <div class="cv-side" onclick="event.stopPropagation()">
       <div style="display:flex;align-items:center;gap:4px">
         <div class="cv-time">${time}</div>
         ${unread ? `<div class="cv-badge">${unread}</div>` : ''}
       </div>
       <div class="cv-actions">
-        ${canGroup ? `<div class="cv-action-btn" onclick="createGroupWith('${uid}','${x(name)}')" title="Groupe" style="background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.25)">👥</div>` : ''}
-        <div class="cv-action-btn" onclick="confirmRemoveContact('${uid}','${x(name)}')" title="Supprimer" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25)">🗑️</div>
+        ${canGroup ? `<div class="cv-action-btn" data-action="group" data-uid="${uid}" onclick="event.stopPropagation();cvActionClick(this)" title="Groupe" style="background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.25)">👥</div>` : ''}
+        <div class="cv-action-btn" data-action="delete" data-uid="${uid}" onclick="event.stopPropagation();cvActionClick(this)" title="Supprimer" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25)">🗑️</div>
       </div>
     </div>
   </div>`;
 }
+
+// Handlers via data-uid (pas de string inline = pas de pb apostrophe)
+function cvClick(el) {
+  const uid = el.closest('[data-uid]')?.dataset?.uid;
+  const d = window._cvData?.[uid];
+  if (d) openConv(d.uid, d.name, d.username, d.cvid);
+}
+window.cvClick = cvClick;
+
+function cvMenuClick(el) {
+  const uid = el.closest('[data-uid]')?.dataset?.uid;
+  const d = window._cvData?.[uid];
+  if (d) openConvMenu(d.uid, d.name, d.username);
+}
+window.cvMenuClick = cvMenuClick;
+
+function cvActionClick(el) {
+  const uid = el.dataset.uid;
+  const action = el.dataset.action;
+  const d = window._cvData?.[uid];
+  if (!d) return;
+  if (action === 'delete') confirmRemoveContact(d.uid, d.name);
+  else if (action === 'group') createGroupWith(d.uid, d.name);
+}
+window.cvActionClick = cvActionClick;
 
 // Typing dans la liste des contacts
 function updateListTypingIndicators() {
@@ -2544,14 +2569,14 @@ function updateListTypingIndicators() {
 }
 window.updateListTypingIndicators = updateListTypingIndicators;
 let _cvPressTimer = null;
-function cvTouchStart(el, uid, name, username) {
+function cvTouchStart(el) {
+  const uid = el.closest('[data-uid]')?.dataset?.uid;
   _cvPressTimer = setTimeout(() => {
-    openConvMenu(uid, name, username);
+    const d = window._cvData?.[uid];
+    if (d) openConvMenu(d.uid, d.name, d.username);
   }, 600);
 }
-function cvTouchEnd() {
-  clearTimeout(_cvPressTimer);
-}
+function cvTouchEnd() { clearTimeout(_cvPressTimer); }
 window.cvTouchStart = cvTouchStart;
 window.cvTouchEnd = cvTouchEnd;
 
