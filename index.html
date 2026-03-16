@@ -1944,14 +1944,35 @@ function updateHomeHeader() {
 function updateHomeFriendsCount() {
   const btn = document.getElementById('home-friends-btn');
   if (!btn || !me) return;
+
+  const updateBtn = (count) => {
+    btn.textContent = count === 0 ? 'Ajouter des amis →' : `${count} ami${count > 1 ? 's' : ''}`;
+  };
+
+  // Essayer myFriendIds d'abord
   let count = myFriendIds.length;
+
+  // Sinon localStorage
   if (count === 0) {
-    // Essayer depuis localStorage
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const myData = users.find(u => u.uid === me.uid);
     count = (myData?.friends || []).length;
   }
-  btn.textContent = count === 0 ? 'Ajouter des amis →' : `${count} ami${count > 1 ? 's' : ''}`;
+
+  updateBtn(count);
+
+  // Si Firebase, recharger en arrière-plan
+  if (fb?.db && count === 0) {
+    import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(({ doc, getDoc }) => {
+      getDoc(doc(fb.db, 'users', me.uid)).then(snap => {
+        if (snap.exists()) {
+          const friends = snap.data().friends || [];
+          myFriendIds = friends;
+          updateBtn(friends.length);
+        }
+      }).catch(() => {});
+    }).catch(() => {});
+  }
 }
 window.updateHomeFriendsCount = updateHomeFriendsCount;
 
@@ -2315,36 +2336,63 @@ async function loadConversations() {
     }).join('');
     return;
   }
-  // Firebase — écouter les conversations ET afficher les amis sans conv
+  // Firebase — conversations + tous les amis
   const { collection, query, where, orderBy, onSnapshot, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+  // Charger d'abord le profil pour avoir les amis à jour
+  let freshFriendIds = [...myFriendIds];
+  try {
+    const mySnap = await getDoc(doc(fb.db, 'users', me.uid));
+    if (mySnap.exists()) freshFriendIds = mySnap.data().friends || [];
+    myFriendIds = freshFriendIds;
+  } catch(_) {}
+
   const q = query(collection(fb.db, 'conversations'), where('participants', 'array-contains', me.uid), orderBy('lastTime', 'desc'));
   if (unsubConvs) unsubConvs();
   unsubConvs = onSnapshot(q, async snap => {
     const convUids = new Set();
     const convCards = [];
+
+    // Conversations avec vrais messages
     snap.docs.forEach(d => {
       const cv = d.data();
       const oid = cv.participants.find(p => p !== me.uid);
-      if (oid) convUids.add(oid);
+      if (!oid) return;
+      // Seulement si vraiment un message envoyé (lastText existe et n'est pas le message par défaut)
+      if (!cv.lastText || cv.lastText === 'Dis bonjour ! 👋') {
+        convUids.add(oid); // marquer comme connu mais pas encore affiché avec conv
+        return;
+      }
+      convUids.add(oid);
       const od = cv.pData?.[oid] || {};
       const unread = cv.unread?.[me.uid] || 0;
-      convCards.push(renderConvItem(oid, od.displayName || 'Utilisateur', od.username || '', cv.lastText || 'Dis bonjour ! 👋', cv.lastTime ? fmtTs(cv.lastTime.toDate?.() || new Date(cv.lastTime)) : '', unread, d.id));
+      convCards.push(renderConvItem(oid, od.displayName || 'Utilisateur', od.username || '', cv.lastText, cv.lastTime ? fmtTs(cv.lastTime.toDate?.() || new Date(cv.lastTime)) : '', unread, d.id));
     });
-    // Ajouter les amis sans conversation
+
+    // Tous les amis — affichés même sans message
     const friendCards = [];
-    for (const fid of myFriendIds) {
-      if (convUids.has(fid)) continue;
+    for (const fid of freshFriendIds) {
+      if (convUids.has(fid)) continue; // déjà dans les convs
       try {
         const fs = await getDoc(doc(fb.db, 'users', fid));
         if (fs.exists()) {
           const fd = fs.data();
-          friendCards.push(renderConvItem(fid, fd.displayName || 'Utilisateur', fd.username || '', 'Dis bonjour ! 👋', '', 0, ''));
+          const nick = getNickname(fid);
+          const dname = nick || fd.displayName || 'Utilisateur';
+          friendCards.push(renderConvItem(fid, dname, fd.username || '', 'Dis bonjour ! 👋', '', 0, ''));
         }
       } catch(_) {}
     }
+
     const all = [...convCards, ...friendCards];
     if (!all.length) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">Aucune conversation</div><div class="empty-sub">Ajoute des amis et commence à discuter !</div><button class="empty-cta" onclick="S('s-friends')">Trouver des amis →</button></div>`;
+      container.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 30px;text-align:center;gap:18px">
+          <div style="font-size:60px">💬</div>
+          <div style="font-size:20px;font-weight:800;color:var(--t1);font-family:var(--ff)">Aucune conversation</div>
+          <div style="font-size:14px;color:var(--t3);line-height:1.7">Envoie un message à un ami<br>pour commencer à discuter !</div>
+          <button onclick="S('s-friends');loadFriends()" style="padding:14px 28px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700;box-shadow:0 4px 20px rgba(108,99,255,.4)">Voir mes amis →</button>
+        </div>`;
     } else {
       container.innerHTML = all.join('');
     }
