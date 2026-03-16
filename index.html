@@ -1432,7 +1432,11 @@ const firebaseConfig = {
 
 <!-- ═══ ÉCRAN APPEL ═══ -->
 <div id="call-screen">
-  <video id="call-remote-video" autoplay playsinline style="display:none"></video>
+
+  <!-- Vidéo distante — plein écran en fond -->
+  <video id="call-remote-video" autoplay playsinline style="display:none;cursor:pointer" title="Appuie pour agrandir" onclick="toggleVideoFS(this)"></video>
+
+  <!-- Placeholder quand pas encore de vidéo -->
   <div id="call-remote-placeholder">
     <div class="call-av-wrap">
       <div class="call-av-ring"></div>
@@ -1443,13 +1447,22 @@ const firebaseConfig = {
     <div id="call-remote-name">...</div>
     <div id="call-status-txt"><div class="call-status-dot"></div>Appel en cours...</div>
   </div>
-  <video id="call-local-video" autoplay muted playsinline onclick="toggleLocalVideo()"></video>
-  <div id="call-local-label">Moi</div>
+
+  <!-- Miniature locale (ta caméra) — coin haut droit -->
+  <video id="call-local-video" autoplay muted playsinline style="cursor:pointer" title="Appuie pour agrandir" onclick="toggleVideoFS(this)"></video>
+  <div id="call-local-label">Moi 📷</div>
+
+  <!-- Hint "appuie pour agrandir" -->
+  <div id="call-tap-hint" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(8px);padding:10px 18px;border-radius:50px;font-size:13px;color:rgba(255,255,255,.85);font-family:var(--ff);pointer-events:none;opacity:0;transition:opacity .3s;z-index:5">
+    👆 Appuie pour agrandir
+  </div>
+
   <div id="call-topbar">
     <div id="call-quality">📶 HD</div>
     <div id="call-timer">00:00</div>
     <div style="width:40px"></div>
   </div>
+
   <div id="call-controls">
     <div class="call-btns-row">
       <div class="call-btn" id="btn-mute" onclick="toggleMute()">
@@ -1478,7 +1491,6 @@ const firebaseConfig = {
         <div class="call-btn-ic">🔄</div>
         <div class="call-btn-lbl">Retourner</div>
       </div>
-    </div>
     </div>
   </div>
 </div>
@@ -2264,55 +2276,43 @@ async function loadConversations() {
   const container = document.getElementById('conv-list');
   if (!fb?.db) {
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
-    const myData = users.find(u => u.uid === me.uid);
-    const friendIds = myData?.friends || [];
-    const seen = new Set();
     const convItems = [];
 
-    // 1. Conversations existantes
+    // Seulement les conversations où il y a eu de VRAIS messages (pas système)
     const keys = Object.keys(localStorage).filter(k => k.startsWith('nova_msgs_'));
     keys.forEach(k => {
       const parts = k.replace('nova_msgs_', '').split('__');
       if (!parts.includes(me.uid)) return;
       const otherId = parts.find(p => p !== me.uid);
       if (!otherId) return;
-      seen.add(otherId);
       const other = users.find(u => u.uid === otherId);
       if (!other) return;
       const msgs = JSON.parse(localStorage.getItem(k) || '[]');
-      const last = msgs[msgs.length - 1];
+      // Filtrer les messages réels (pas système)
+      const realMsgs = msgs.filter(m => m.type !== 'system' && m.from !== 'system');
+      if (!realMsgs.length) return; // pas de vrai message = pas dans la liste
+      const last = realMsgs[realMsgs.length - 1];
       const unread = msgs.filter(m => m.from !== me.uid && m.status !== 'read').length;
       convItems.push({ other, last, unread });
     });
 
-    // 2. Amis sans conversation — combiner myFriendIds ET friends du profil
-    const allFriendIds = [...new Set([...friendIds, ...myFriendIds])];
-    allFriendIds.forEach(fid => {
-      if (seen.has(fid)) return;
-      const friend = users.find(u => u.uid === fid);
-      if (!friend) return;
-      seen.add(fid);
-      convItems.push({ other: friend, last: null, unread: 0 });
-    });
-
     if (!convItems.length) {
-      // Aucun ami du tout → message centré avec bouton
       container.innerHTML = `
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 30px;text-align:center;gap:16px;height:100%">
-          <div style="font-size:56px">👥</div>
-          <div style="font-size:19px;font-weight:800;color:var(--t1);font-family:var(--ff)">Aucun ami pour l'instant</div>
-          <div style="font-size:14px;color:var(--t3);line-height:1.6">Ajoute des amis pour commencer<br>à discuter avec eux !</div>
-          <button onclick="S('s-friends');loadFriends()" style="margin-top:8px;padding:14px 28px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700;box-shadow:0 4px 20px rgba(108,99,255,.4)">+ Ajouter des amis</button>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 30px;text-align:center;gap:18px;">
+          <div style="font-size:60px">💬</div>
+          <div style="font-size:20px;font-weight:800;color:var(--t1);font-family:var(--ff)">Aucune conversation</div>
+          <div style="font-size:14px;color:var(--t3);line-height:1.7">Envoie un message à un ami<br>pour commencer à discuter !</div>
+          <button onclick="S('s-friends');loadFriends()" style="padding:14px 28px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700;box-shadow:0 4px 20px rgba(108,99,255,.4)">Voir mes amis →</button>
         </div>`;
       return;
     }
-    // Trier: conversations récentes d'abord, amis sans message après
-    convItems.sort((a, b) => {
-      const ta = a.last ? new Date(a.last.ts).getTime() : 0;
-      const tb = b.last ? new Date(b.last.ts).getTime() : 0;
-      return tb - ta;
-    });
-    container.innerHTML = convItems.map(cv => renderConvItem(cv.other.uid, cv.other.displayName, cv.other.username, cv.last?.type === 'system' ? '' : (cv.last?.text || (cv.last ? '...' : 'Dis bonjour ! 👋')), cv.last ? fmtTs(new Date(cv.last.ts)) : '', cv.unread)).join('');
+
+    convItems.sort((a, b) => new Date(b.last.ts).getTime() - new Date(a.last.ts).getTime());
+    container.innerHTML = convItems.map(cv => {
+      const nick = getNickname(cv.other.uid);
+      const displayName = nick || cv.other.displayName;
+      return renderConvItem(cv.other.uid, displayName, cv.other.username, cv.last?.text || '...', fmtTs(new Date(cv.last.ts)), cv.unread);
+    }).join('');
     return;
   }
   // Firebase — écouter les conversations ET afficher les amis sans conv
@@ -3837,16 +3837,16 @@ async function startCall(type) {
       _remoteStream = e.streams[0];
       const rv = document.getElementById('call-remote-video');
       rv.srcObject = _remoteStream;
-      // Toujours afficher la vidéo distante (cam OU partage écran)
       rv.style.display = 'block';
-      document.getElementById('call-remote-placeholder').style.display = 'none';
-      // Clic sur la vidéo distante = plein écran
-      rv.onclick = () => {
-        if (document.fullscreenElement) { document.exitFullscreen(); }
-        else { rv.requestFullscreen?.().catch(()=>{}); }
-      };
       rv.style.cursor = 'pointer';
-      rv.title = 'Cliquer pour plein écran';
+      rv.title = 'Appuie pour agrandir';
+      rv.onclick = () => toggleVideoFS(rv);
+      document.getElementById('call-remote-placeholder').style.display = 'none';
+      // Mettre à jour le statut
+      document.getElementById('call-status-txt').textContent = '🟢 En communication';
+      document.getElementById('call-status-txt').classList.add('connected');
+      // Montrer le hint pendant 2.5s
+      showCallHint();
     };
     _pc.onicecandidate = async e => {
       if (!e.candidate) return;
@@ -3998,15 +3998,14 @@ async function acceptCall() {
       _remoteStream = e.streams[0];
       const rv = document.getElementById('call-remote-video');
       rv.srcObject = _remoteStream;
-      // Toujours afficher (cam OU partage écran)
       rv.style.display = 'block';
-      document.getElementById('call-remote-placeholder').style.display = 'none';
-      rv.onclick = () => {
-        if (document.fullscreenElement) { document.exitFullscreen(); }
-        else { rv.requestFullscreen?.().catch(()=>{}); }
-      };
       rv.style.cursor = 'pointer';
-      rv.title = 'Cliquer pour plein écran';
+      rv.title = 'Appuie pour agrandir';
+      rv.onclick = () => toggleVideoFS(rv);
+      document.getElementById('call-remote-placeholder').style.display = 'none';
+      document.getElementById('call-status-txt').textContent = '🟢 En communication';
+      document.getElementById('call-status-txt').classList.add('connected');
+      showCallHint();
     };
     _pc.onicecandidate = async e => {
       if (!e.candidate) return;
@@ -4233,10 +4232,36 @@ async function flipCallCam() {
   } catch(_) { toast('Impossible de retourner la caméra', 'err'); }
 }
 
+// Plein écran universel — fonctionne sur n'importe quelle vidéo
+function toggleVideoFS(videoEl) {
+  if (!videoEl) return;
+  if (document.fullscreenElement === videoEl) {
+    document.exitFullscreen().catch(() => {});
+  } else {
+    videoEl.requestFullscreen?.().catch(() => {
+      // Fallback iOS
+      if (videoEl.webkitEnterFullscreen) videoEl.webkitEnterFullscreen();
+    });
+  }
+}
+window.toggleVideoFS = toggleVideoFS;
+
+// Montrer le hint "appuie pour agrandir" pendant 2s quand la vidéo distante apparaît
+function showCallHint() {
+  const hint = document.getElementById('call-tap-hint');
+  if (!hint) return;
+  hint.style.opacity = '1';
+  setTimeout(() => { hint.style.opacity = '0'; }, 2500);
+}
+window.showCallHint = showCallHint;
+
 function toggleLocalVideo() {
   const v = document.getElementById('call-local-video');
   if (v) v.style.opacity = v.style.opacity === '0' ? '1' : '0';
 }
+// Alias pour compatibilité
+function toggleLocalVideoFS() { toggleVideoFS(document.getElementById('call-local-video')); }
+window.toggleLocalVideoFS = toggleLocalVideoFS;
 
 Object.assign(window, { startCall, acceptCall, declineCall, endCall, toggleMute, toggleCamInCall, toggleSpeaker, flipCallCam, toggleLocalVideo });
 
