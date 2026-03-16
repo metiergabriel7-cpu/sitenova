@@ -2474,6 +2474,10 @@ function renderConvItem(uid, name, username, lastMsg, time, unread, cid) {
   const preview = lastMsg
     ? `<span>${x(lastMsg)}</span>`
     : `<span style="color:var(--e2);font-style:italic">Dis bonjour ! 👋</span>`;
+
+  // Bouton groupe visible si 2+ amis
+  const canGroup = myFriendIds.length >= 2;
+
   return `<div class="cv" data-uid="${uid}" data-name="${x(name)}" data-username="${x(username)}" data-cid="${cvid}"
     onclick="openConv('${uid}','${x(name)}','${x(username)}','${cvid}')"
     oncontextmenu="event.preventDefault();openConvMenu('${uid}','${x(name)}','${x(username)}')"
@@ -2491,9 +2495,17 @@ function renderConvItem(uid, name, username, lastMsg, time, unread, cid) {
         est en train d'écrire<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>
       </div>
     </div>
-    <div class="cv-side">
-      <div class="cv-time">${time}</div>
-      ${unread ? `<div class="cv-badge">${unread}</div>` : ''}
+    <div class="cv-side" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <div style="display:flex;align-items:center;gap:4px">
+        <div class="cv-time">${time}</div>
+        ${unread ? `<div class="cv-badge">${unread}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
+        ${canGroup ? `<div onclick="createGroupWith('${uid}','${x(name)}')" title="Créer un groupe"
+          style="width:28px;height:28px;border-radius:8px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px">👥</div>` : ''}
+        <div onclick="confirmRemoveContact('${uid}','${x(name)}')" title="Supprimer"
+          style="width:28px;height:28px;border-radius:8px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px">🗑️</div>
+      </div>
     </div>
   </div>`;
 }
@@ -2673,11 +2685,76 @@ async function removeContact(uid) {
 }
 window.removeContact = removeContact;
 
-// Créer un groupe (UI basique pour l'instant)
-function createGroupWith(uid, name) {
-  toast('Groupes disponibles prochainement 🚀', 'inf');
+// Créer un groupe
+function createGroupWith(firstUid, firstName) {
+  const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+  const allFriendIds = [...new Set([...myFriendIds])];
+  const otherFriends = allFriendIds.filter(f => f !== firstUid);
+
+  const overlay = document.createElement('div');
+  overlay.id = 'group-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9985;display:flex;align-items:flex-end;backdrop-filter:blur(10px)';
+
+  const friendOptions = otherFriends.map(fid => {
+    const f = fb?.db ? null : users.find(u => u.uid === fid);
+    const dname = f ? (getNickname(fid) || f.displayName || 'Ami') : 'Ami';
+    const un = f?.username || '';
+    return `<label style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      <input type="checkbox" value="${fid}" data-name="${x(dname)}" style="width:20px;height:20px;accent-color:var(--e1);cursor:pointer">
+      <div class="av s44" style="flex-shrink:0">${initials(dname)}</div>
+      <div><div style="font-size:15px;font-weight:700;color:var(--t1)">${x(dname)}</div><div style="font-size:12px;color:var(--t3)">@${x(un)}</div></div>
+    </label>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div style="width:100%;background:var(--bg2);border-radius:24px 24px 0 0;padding:20px 20px calc(24px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);max-height:80vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:17px;font-weight:800;font-family:var(--ff)">👥 Créer un groupe</div>
+        <div onclick="document.getElementById('group-overlay').remove()" style="width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer">✕</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:12px;padding:11px 16px;margin-bottom:14px;font-size:14px;color:var(--e2)">
+        ✓ ${x(firstName)} est déjà sélectionné
+      </div>
+      <div style="margin-bottom:6px;font-size:12px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:1px">Ajouter d'autres amis</div>
+      <div id="group-friends-list">${friendOptions || '<div style="color:var(--t3);font-size:13px;padding:12px 0">Aucun autre ami disponible</div>'}</div>
+      <input id="group-name" placeholder="Nom du groupe..." maxlength="40"
+        style="width:100%;margin-top:16px;background:var(--bg3);border:1.5px solid var(--border2);border-radius:14px;padding:13px 16px;font-size:15px;color:var(--t1);font-family:var(--ff);outline:none">
+      <button onclick="confirmCreateGroup('${firstUid}')" style="width:100%;margin-top:12px;padding:15px;border-radius:14px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700;box-shadow:0 4px 18px rgba(108,99,255,.35)">🚀 Créer le groupe</button>
+    </div>`;
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
 }
 window.createGroupWith = createGroupWith;
+
+function confirmCreateGroup(firstUid) {
+  const groupName = document.getElementById('group-name')?.value?.trim();
+  if (!groupName) { toast('Donne un nom au groupe', 'err'); return; }
+
+  const checked = [...document.querySelectorAll('#group-friends-list input:checked')];
+  const members = [me.uid, firstUid, ...checked.map(c => c.value)];
+  const memberNames = [me.displayName, ...checked.map(c => c.dataset.name)];
+
+  // Créer la conv de groupe en localStorage
+  const gid = 'g_' + Date.now();
+  const groupData = {
+    id: gid, type: 'group', name: groupName,
+    members, createdAt: Date.now(), createdBy: me.uid
+  };
+  const groups = JSON.parse(localStorage.getItem('nova_groups') || '[]');
+  groups.push(groupData);
+  localStorage.setItem('nova_groups', JSON.stringify(groups));
+
+  // Message système
+  localStorage.setItem('nova_msgs_' + gid, JSON.stringify([
+    { from:'system', type:'system', text:`Groupe "${groupName}" créé ! 🎉`, ts: new Date().toISOString() }
+  ]));
+
+  document.getElementById('group-overlay')?.remove();
+  playSound('ok');
+  toast(`Groupe "${groupName}" créé ! 🎉`, 'ok');
+  loadConversations();
+}
+window.confirmCreateGroup = confirmCreateGroup;
 
 function filterConvs(q) {
   if (!q) { loadConversations(); return; }
