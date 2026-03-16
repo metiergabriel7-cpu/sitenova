@@ -2288,6 +2288,8 @@ function convKey(uid1, uid2) { return [uid1, uid2].sort().join('__'); }
 async function loadConversations() {
   if (!me) return;
   const container = document.getElementById('conv-list');
+  if (!container) return; // sécurité si l'élément n'existe pas encore
+  if (!container) return; // sécurité — l'élément n'existe pas encore
 
   if (!fb?.db) {
     // ── Mode local ──
@@ -2377,7 +2379,7 @@ async function loadConversations() {
   const { collection, query, where, orderBy, onSnapshot, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
   // Afficher un loader
-  container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3);font-family:var(--ff)">Chargement...</div>';
+  // loader déjà géré
 
   // Lire les amis depuis Firestore MAINTENANT (pas depuis la variable potentiellement vide)
   let freshFriendIds = [];
@@ -2391,6 +2393,8 @@ async function loadConversations() {
 
   // Fonction pour rebuilder la liste complète
   async function rebuildList(convSnap) {
+    const c2 = document.getElementById('conv-list');
+    if (!c2) return;
     const convUids = new Set();
     const convItems = [];
 
@@ -2429,7 +2433,7 @@ async function loadConversations() {
     }
 
     if (!convItems.length) {
-      container.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 30px;text-align:center;gap:18px">
+      c2.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 30px;text-align:center;gap:18px">
         <div style="font-size:60px">💬</div>
         <div style="font-size:20px;font-weight:800;color:var(--t1);font-family:var(--ff)">Aucun contact</div>
         <div style="font-size:14px;color:var(--t3);line-height:1.7">Ajoute des amis pour commencer à discuter !</div>
@@ -2443,7 +2447,7 @@ async function loadConversations() {
       if (!a.hasMsg && b.hasMsg) return 1;
       return b.lastTs - a.lastTs;
     });
-    container.innerHTML = convItems.map(i => i.html).join('');
+    c2.innerHTML = convItems.map(i => i.html).join('');
   }
 
   // Afficher les amis immédiatement (avant même d'avoir les convs)
