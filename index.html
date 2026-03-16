@@ -1155,11 +1155,7 @@ const firebaseConfig = {
         <button class="empty-cta" onclick="S('s-friends');loadFriends()">Trouver des amis →</button>
       </div>
     </div>
-    <!-- Mes amis — déplacé ici depuis l'écran Amis -->
-    <div class="fr-block" id="home-friends-block" style="display:none;padding:0 18px 80px">
-      <div class="fr-block-title" style="margin-top:18px">Mes amis</div>
-      <div id="home-fr-list"></div>
-    </div>
+
   </div>
   <div class="bnav">
     <div class="bntab on" id="bn-home" onclick="bnav(this,'home')"><div class="bni">💬</div><div class="bnl">Messagerie</div></div>
@@ -2292,11 +2288,16 @@ function convKey(uid1, uid2) { return [uid1, uid2].sort().join('__'); }
 async function loadConversations() {
   if (!me) return;
   const container = document.getElementById('conv-list');
-  if (!fb?.db) {
-    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
-    const convItems = [];
 
-    // Seulement les conversations où il y a eu de VRAIS messages (pas système)
+  if (!fb?.db) {
+    // ── Mode local ──
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    const myData = users.find(u => u.uid === me.uid);
+    const allFriendIds = [...new Set([...(myData?.friends || []), ...myFriendIds])];
+    const seen = new Set();
+    const items = []; // { other, lastText, lastTs, unread, isFriend }
+
+    // 1. Conversations avec vrais messages
     const keys = Object.keys(localStorage).filter(k => k.startsWith('nova_msgs_'));
     keys.forEach(k => {
       const parts = k.replace('nova_msgs_', '').split('__');
@@ -2305,57 +2306,71 @@ async function loadConversations() {
       if (!otherId) return;
       const other = users.find(u => u.uid === otherId);
       if (!other) return;
+      seen.add(otherId);
       const msgs = JSON.parse(localStorage.getItem(k) || '[]');
-      // Filtrer les messages réels (pas système)
       const realMsgs = msgs.filter(m => m.type !== 'system' && m.from !== 'system');
-      if (!realMsgs.length) return; // pas de vrai message = pas dans la liste
-      const last = realMsgs[realMsgs.length - 1];
       const unread = msgs.filter(m => m.from !== me.uid && m.status !== 'read').length;
-      convItems.push({ other, last, unread });
+      if (realMsgs.length) {
+        const last = realMsgs[realMsgs.length - 1];
+        items.push({ other, lastText: last.text || '...', lastTs: new Date(last.ts).getTime(), unread, hasMsg: true });
+      } else {
+        // ami avec conv mais pas encore de vrai message
+        items.push({ other, lastText: '', lastTs: 0, unread: 0, hasMsg: false });
+      }
     });
 
-    if (!convItems.length) {
-      container.innerHTML = `
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 30px;text-align:center;gap:18px;">
-          <div style="font-size:60px">💬</div>
-          <div style="font-size:20px;font-weight:800;color:var(--t1);font-family:var(--ff)">Aucune conversation</div>
-          <div style="font-size:14px;color:var(--t3);line-height:1.7">Envoie un message à un ami<br>pour commencer à discuter !</div>
-          <button onclick="S('s-friends');loadFriends()" style="padding:14px 28px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700;box-shadow:0 4px 20px rgba(108,99,255,.4)">Voir mes amis →</button>
-        </div>`;
+    // 2. Amis sans conv du tout — directement dans la liste
+    allFriendIds.forEach(fid => {
+      if (seen.has(fid)) return;
+      const f = users.find(u => u.uid === fid);
+      if (!f) return;
+      seen.add(fid);
+      items.push({ other: f, lastText: '', lastTs: 0, unread: 0, hasMsg: false });
+    });
+
+    if (!items.length) {
+      container.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 30px;text-align:center;gap:18px">
+        <div style="font-size:60px">💬</div>
+        <div style="font-size:20px;font-weight:800;color:var(--t1);font-family:var(--ff)">Aucune conversation</div>
+        <div style="font-size:14px;color:var(--t3);line-height:1.7">Ajoute des amis pour commencer<br>à discuter !</div>
+        <button onclick="S('s-friends');loadFriends()" style="padding:14px 28px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700;box-shadow:0 4px 20px rgba(108,99,255,.4)">Trouver des amis →</button>
+      </div>`;
       return;
     }
 
-    convItems.sort((a, b) => new Date(b.last.ts).getTime() - new Date(a.last.ts).getTime());
-    container.innerHTML = convItems.map(cv => {
-      const nick = getNickname(cv.other.uid);
-      const displayName = nick || cv.other.displayName;
-      return renderConvItem(cv.other.uid, displayName, cv.other.username, cv.last?.text || '...', fmtTs(new Date(cv.last.ts)), cv.unread);
-    }).join('');
+    // Trier : messages récents d'abord, amis sans message après (alphabétique)
+    items.sort((a, b) => {
+      if (a.hasMsg && !b.hasMsg) return -1;
+      if (!a.hasMsg && b.hasMsg) return 1;
+      if (a.hasMsg && b.hasMsg) return b.lastTs - a.lastTs;
+      return (a.other.displayName || '').localeCompare(b.other.displayName || '');
+    });
 
-    // Afficher Mes amis en dessous
-    const users2 = JSON.parse(localStorage.getItem('nova_users') || '[]');
-    const myData2 = users2.find(u => u.uid === me.uid);
-    const allFriendIds = [...new Set([...(myData2?.friends || []), ...myFriendIds])];
-    const block = document.getElementById('home-friends-block');
-    const homeFrList = document.getElementById('home-fr-list');
-    if (block && homeFrList && allFriendIds.length > 0) {
-      block.style.display = 'block';
-      homeFrList.innerHTML = allFriendIds.map(fid => {
-        const f = users2.find(u => u.uid === fid);
-        if (!f) return '';
-        const nick = getNickname(fid);
-        const dname = nick || f.displayName || 'Utilisateur';
-        const avatarUrl = localStorage.getItem('nova_avatar_' + fid);
-        const avContent = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">` : initials(dname);
-        return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openConv('${fid}','${x(dname)}','${x(f.username||'')}','')">
-          <div style="position:relative;flex-shrink:0"><div class="av s48" style="overflow:hidden">${avContent}</div><div style="position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid var(--bg1)"></div></div>
-          <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;color:var(--t1)">${x(dname)}</div><div style="font-size:12px;color:var(--t3)">@${x(f.username||'')}</div></div>
-          <div style="padding:0 14px;height:34px;border-radius:50px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);color:var(--e2);font-size:13px;font-weight:700;font-family:var(--ff);display:flex;align-items:center">💬</div>
-        </div>`;
-      }).filter(Boolean).join('');
-    } else if (block) {
-      block.style.display = 'none';
-    }
+    container.innerHTML = items.map(item => {
+      const nick = getNickname(item.other.uid);
+      const dname = nick || item.other.displayName;
+      const avatarUrl = localStorage.getItem('nova_avatar_' + item.other.uid);
+      const avContent = avatarUrl
+        ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`
+        : initials(dname);
+      const cid = convKey(me.uid, item.other.uid);
+      const preview = item.hasMsg ? x(item.lastText) : '<span style="color:var(--e2);font-style:italic">Dis bonjour ! 👋</span>';
+      const timeStr = item.hasMsg ? fmtTs(new Date(item.lastTs)) : '';
+      return `<div class="cv" onclick="openConv('${item.other.uid}','${x(dname)}','${x(item.other.username||'')}','${cid}')">
+        <div class="cv-av-wrap" style="position:relative">
+          <div class="av s52" style="overflow:hidden">${avContent}</div>
+          <div style="position:absolute;bottom:2px;right:2px;width:12px;height:12px;border-radius:50%;background:var(--green);border:2.5px solid var(--bg1)"></div>
+        </div>
+        <div class="cv-body">
+          <div class="cv-name">${x(dname)}</div>
+          <div class="cv-preview ${item.unread ? 'unread' : ''}">${preview}</div>
+        </div>
+        <div class="cv-side">
+          <div class="cv-time">${timeStr}</div>
+          ${item.unread ? `<div class="cv-badge">${item.unread}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
     return;
   }
   // Firebase — conversations + tous les amis
@@ -2373,101 +2388,83 @@ async function loadConversations() {
   if (unsubConvs) unsubConvs();
   unsubConvs = onSnapshot(q, async snap => {
     const convUids = new Set();
-    const convCards = [];
+    const convItems = []; // { html, lastTs, hasMsg }
 
     // Conversations avec vrais messages
     snap.docs.forEach(d => {
       const cv = d.data();
       const oid = cv.participants.find(p => p !== me.uid);
       if (!oid) return;
-      // Seulement si vraiment un message envoyé (lastText existe et n'est pas le message par défaut)
-      if (!cv.lastText || cv.lastText === 'Dis bonjour ! 👋') {
-        convUids.add(oid); // marquer comme connu mais pas encore affiché avec conv
-        return;
-      }
       convUids.add(oid);
       const od = cv.pData?.[oid] || {};
       const unread = cv.unread?.[me.uid] || 0;
-      convCards.push(renderConvItem(oid, od.displayName || 'Utilisateur', od.username || '', cv.lastText, cv.lastTime ? fmtTs(cv.lastTime.toDate?.() || new Date(cv.lastTime)) : '', unread, d.id));
+      const hasMsg = !!(cv.lastText && cv.lastText !== 'Dis bonjour ! 👋');
+      const lastTs = cv.lastTime ? (cv.lastTime.toMillis?.() || cv.lastTime) : 0;
+      convItems.push({
+        html: renderConvItem(oid, od.displayName || 'Utilisateur', od.username || '',
+          hasMsg ? cv.lastText : '',
+          hasMsg && cv.lastTime ? fmtTs(cv.lastTime.toDate?.() || new Date(cv.lastTime)) : '',
+          unread, d.id),
+        lastTs, hasMsg
+      });
     });
 
-    // Tous les amis — affichés même sans message
-    const friendCards = [];
+    // Amis sans conv — directement dans la liste
     for (const fid of freshFriendIds) {
-      if (convUids.has(fid)) continue; // déjà dans les convs
+      if (convUids.has(fid)) continue;
       try {
         const fs = await getDoc(doc(fb.db, 'users', fid));
         if (fs.exists()) {
           const fd = fs.data();
           const nick = getNickname(fid);
           const dname = nick || fd.displayName || 'Utilisateur';
-          friendCards.push(renderConvItem(fid, dname, fd.username || '', 'Dis bonjour ! 👋', '', 0, ''));
+          convItems.push({
+            html: renderConvItem(fid, dname, fd.username || '', '', '', 0, ''),
+            lastTs: 0, hasMsg: false
+          });
         }
       } catch(_) {}
     }
 
-    const all = [...convCards, ...friendCards];
-    if (!all.length) {
-      container.innerHTML = `
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 30px;text-align:center;gap:18px">
-          <div style="font-size:60px">💬</div>
-          <div style="font-size:20px;font-weight:800;color:var(--t1);font-family:var(--ff)">Aucune conversation</div>
-          <div style="font-size:14px;color:var(--t3);line-height:1.7">Envoie un message à un ami<br>pour commencer à discuter !</div>
-          <button onclick="S('s-friends');loadFriends()" style="padding:14px 28px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700;box-shadow:0 4px 20px rgba(108,99,255,.4)">Voir mes amis →</button>
-        </div>`;
-    } else {
-      container.innerHTML = all.join('');
+    if (!convItems.length) {
+      container.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 30px;text-align:center;gap:18px">
+        <div style="font-size:60px">💬</div>
+        <div style="font-size:20px;font-weight:800;color:var(--t1);font-family:var(--ff)">Aucune conversation</div>
+        <div style="font-size:14px;color:var(--t3);line-height:1.7">Ajoute des amis pour commencer à discuter !</div>
+        <button onclick="S('s-friends');loadFriends()" style="padding:14px 28px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700">Trouver des amis →</button>
+      </div>`;
+      return;
     }
 
-    // Afficher "Mes amis" en dessous des convs
-    const block = document.getElementById('home-friends-block');
-    const listEl = document.getElementById('home-fr-list');
-    if (block && listEl) {
-      if (freshFriendIds.length === 0) {
-        block.style.display = 'none';
-      } else {
-        block.style.display = 'block';
-        const friendListCards = [];
-        for (const fid of freshFriendIds) {
-          try {
-            const fs = await getDoc(doc(fb.db, 'users', fid));
-            if (fs.exists()) {
-              const fd = fs.data();
-              const nick = getNickname(fid);
-              const dname = nick || fd.displayName || 'Utilisateur';
-              const avatarUrl = localStorage.getItem('nova_avatar_' + fid);
-              const avContent = avatarUrl
-                ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`
-                : initials(dname);
-              friendListCards.push(`
-                <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openConv('${fid}','${x(dname)}','${x(fd.username||'')}','')">
-                  <div style="position:relative;flex-shrink:0">
-                    <div class="av s48" style="overflow:hidden">${avContent}</div>
-                    <div style="position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid var(--bg1)"></div>
-                  </div>
-                  <div style="flex:1;min-width:0">
-                    <div style="font-size:15px;font-weight:700;color:var(--t1)">${x(dname)}</div>
-                    <div style="font-size:12px;color:var(--t3)">@${x(fd.username||'')}</div>
-                  </div>
-                  <div style="padding:0 14px;height:34px;border-radius:50px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);color:var(--e2);font-size:13px;font-weight:700;font-family:var(--ff);display:flex;align-items:center">💬</div>
-                </div>`);
-            }
-          } catch(_) {}
-        }
-        listEl.innerHTML = friendListCards.join('') || '<div style="font-size:13px;color:var(--t3);padding:12px 0">Aucun ami trouvé</div>';
-      }
-    }
+    // Trier : messages récents d'abord, amis sans message après
+    convItems.sort((a, b) => {
+      if (a.hasMsg && !b.hasMsg) return -1;
+      if (!a.hasMsg && b.hasMsg) return 1;
+      return b.lastTs - a.lastTs;
+    });
+
+    container.innerHTML = convItems.map(i => i.html).join('');
   });
 }
 
 function renderConvItem(uid, name, username, lastMsg, time, unread, cid) {
   const init = initials(name);
   const cvid = cid || convKey(me.uid, uid);
+  const avatarUrl = localStorage.getItem('nova_avatar_' + uid);
+  const avContent = avatarUrl
+    ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`
+    : init;
+  const preview = lastMsg
+    ? `<span>${x(lastMsg)}</span>`
+    : `<span style="color:var(--e2);font-style:italic">Dis bonjour ! 👋</span>`;
   return `<div class="cv" onclick="openConv('${uid}','${x(name)}','${x(username)}','${cvid}')">
-    <div class="cv-av-wrap"><div class="av s52">${init}</div></div>
+    <div class="cv-av-wrap" style="position:relative">
+      <div class="av s52" style="overflow:hidden">${avContent}</div>
+      <div style="position:absolute;bottom:2px;right:2px;width:12px;height:12px;border-radius:50%;background:var(--green);border:2.5px solid var(--bg1)"></div>
+    </div>
     <div class="cv-body">
       <div class="cv-name">${x(name)}</div>
-      <div class="cv-preview ${unread ? 'unread' : ''}">${x(lastMsg)}</div>
+      <div class="cv-preview ${unread ? 'unread' : ''}">${preview}</div>
     </div>
     <div class="cv-side">
       <div class="cv-time">${time}</div>
