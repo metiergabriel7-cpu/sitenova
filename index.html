@@ -282,13 +282,23 @@ body::before{
 .cv-name{font-size:16px;font-weight:700;margin-bottom:3px;letter-spacing:-.3px}
 .cv-preview{font-size:13px;color:var(--t2);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .cv-preview.unread{color:var(--t1);font-weight:600}
-.cv-side{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+.cv-side{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;min-width:60px}
 .cv-time{font-size:11px;color:var(--t3)}
 .cv-badge{
   min-width:20px;height:20px;border-radius:10px;padding:0 5px;
   background:var(--grad);color:#fff;font-size:11px;font-weight:800;
   display:flex;align-items:center;justify-content:center;
 }
+.cv-actions{display:flex;gap:4px;margin-top:2px}
+.cv-action-btn{
+  width:26px;height:26px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;cursor:pointer;
+  transition:transform .12s,opacity .12s;
+  opacity:.7;
+}
+.cv-action-btn:hover{opacity:1;transform:scale(1.1)}
+.cv-action-btn:active{transform:scale(.9)}
 .cv-av-wrap{position:relative;flex-shrink:0}
 
 .empty-state{
@@ -2496,15 +2506,14 @@ function renderConvItem(uid, name, username, lastMsg, time, unread, cid) {
       </div>
     </div>
     <div class="cv-side" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+    <div class="cv-side" onclick="event.stopPropagation()">
       <div style="display:flex;align-items:center;gap:4px">
         <div class="cv-time">${time}</div>
         ${unread ? `<div class="cv-badge">${unread}</div>` : ''}
       </div>
-      <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
-        ${canGroup ? `<div onclick="createGroupWith('${uid}','${x(name)}')" title="Créer un groupe"
-          style="width:28px;height:28px;border-radius:8px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px">👥</div>` : ''}
-        <div onclick="confirmRemoveContact('${uid}','${x(name)}')" title="Supprimer"
-          style="width:28px;height:28px;border-radius:8px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px">🗑️</div>
+      <div class="cv-actions">
+        ${canGroup ? `<div class="cv-action-btn" onclick="createGroupWith('${uid}','${x(name)}')" title="Groupe" style="background:rgba(108,99,255,.15);border:1px solid rgba(108,99,255,.25)">👥</div>` : ''}
+        <div class="cv-action-btn" onclick="confirmRemoveContact('${uid}','${x(name)}')" title="Supprimer" style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25)">🗑️</div>
       </div>
     </div>
   </div>`;
