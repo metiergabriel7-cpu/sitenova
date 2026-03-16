@@ -1155,6 +1155,11 @@ const firebaseConfig = {
         <button class="empty-cta" onclick="S('s-friends');loadFriends()">Trouver des amis →</button>
       </div>
     </div>
+    <!-- Mes amis — déplacé ici depuis l'écran Amis -->
+    <div class="fr-block" id="home-friends-block" style="display:none;padding:0 18px 80px">
+      <div class="fr-block-title" style="margin-top:18px">Mes amis</div>
+      <div id="home-fr-list"></div>
+    </div>
   </div>
   <div class="bnav">
     <div class="bntab on" id="bn-home" onclick="bnav(this,'home')"><div class="bni">💬</div><div class="bnl">Messagerie</div></div>
@@ -1271,10 +1276,6 @@ const firebaseConfig = {
     <div class="fr-block">
       <div class="fr-block-title">Demandes reçues</div>
       <div id="fr-reqs"></div>
-    </div>
-    <div class="fr-block">
-      <div class="fr-block-title">Mes amis</div>
-      <div id="fr-list"></div>
     </div>
   </div>
 </div>
@@ -2334,6 +2335,31 @@ async function loadConversations() {
       const displayName = nick || cv.other.displayName;
       return renderConvItem(cv.other.uid, displayName, cv.other.username, cv.last?.text || '...', fmtTs(new Date(cv.last.ts)), cv.unread);
     }).join('');
+
+    // Afficher Mes amis en dessous
+    const users2 = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    const myData2 = users2.find(u => u.uid === me.uid);
+    const allFriendIds = [...new Set([...(myData2?.friends || []), ...myFriendIds])];
+    const block = document.getElementById('home-friends-block');
+    const homeFrList = document.getElementById('home-fr-list');
+    if (block && homeFrList && allFriendIds.length > 0) {
+      block.style.display = 'block';
+      homeFrList.innerHTML = allFriendIds.map(fid => {
+        const f = users2.find(u => u.uid === fid);
+        if (!f) return '';
+        const nick = getNickname(fid);
+        const dname = nick || f.displayName || 'Utilisateur';
+        const avatarUrl = localStorage.getItem('nova_avatar_' + fid);
+        const avContent = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">` : initials(dname);
+        return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openConv('${fid}','${x(dname)}','${x(f.username||'')}','')">
+          <div style="position:relative;flex-shrink:0"><div class="av s48" style="overflow:hidden">${avContent}</div><div style="position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid var(--bg1)"></div></div>
+          <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700;color:var(--t1)">${x(dname)}</div><div style="font-size:12px;color:var(--t3)">@${x(f.username||'')}</div></div>
+          <div style="padding:0 14px;height:34px;border-radius:50px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);color:var(--e2);font-size:13px;font-weight:700;font-family:var(--ff);display:flex;align-items:center">💬</div>
+        </div>`;
+      }).filter(Boolean).join('');
+    } else if (block) {
+      block.style.display = 'none';
+    }
     return;
   }
   // Firebase — conversations + tous les amis
@@ -2395,6 +2421,45 @@ async function loadConversations() {
         </div>`;
     } else {
       container.innerHTML = all.join('');
+    }
+
+    // Afficher "Mes amis" en dessous des convs
+    const block = document.getElementById('home-friends-block');
+    const listEl = document.getElementById('home-fr-list');
+    if (block && listEl) {
+      if (freshFriendIds.length === 0) {
+        block.style.display = 'none';
+      } else {
+        block.style.display = 'block';
+        const friendListCards = [];
+        for (const fid of freshFriendIds) {
+          try {
+            const fs = await getDoc(doc(fb.db, 'users', fid));
+            if (fs.exists()) {
+              const fd = fs.data();
+              const nick = getNickname(fid);
+              const dname = nick || fd.displayName || 'Utilisateur';
+              const avatarUrl = localStorage.getItem('nova_avatar_' + fid);
+              const avContent = avatarUrl
+                ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`
+                : initials(dname);
+              friendListCards.push(`
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openConv('${fid}','${x(dname)}','${x(fd.username||'')}','')">
+                  <div style="position:relative;flex-shrink:0">
+                    <div class="av s48" style="overflow:hidden">${avContent}</div>
+                    <div style="position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid var(--bg1)"></div>
+                  </div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:15px;font-weight:700;color:var(--t1)">${x(dname)}</div>
+                    <div style="font-size:12px;color:var(--t3)">@${x(fd.username||'')}</div>
+                  </div>
+                  <div style="padding:0 14px;height:34px;border-radius:50px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.25);color:var(--e2);font-size:13px;font-weight:700;font-family:var(--ff);display:flex;align-items:center">💬</div>
+                </div>`);
+            }
+          } catch(_) {}
+        }
+        listEl.innerHTML = friendListCards.join('') || '<div style="font-size:13px;color:var(--t3);padding:12px 0">Aucun ami trouvé</div>';
+      }
     }
   });
 }
@@ -3229,7 +3294,7 @@ async function sendFriendReq(uid, name, btn) {
 async function loadFriends() {
   const sentEl = document.getElementById('fr-sent');
   const reqEl = document.getElementById('fr-reqs');
-  const listEl = document.getElementById('fr-list');
+  const listEl = document.getElementById('home-fr-list');
   if (!me) return;
   if (!fb?.db) {
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
@@ -3286,7 +3351,7 @@ async function loadFriends() {
     const friends = users.filter(u => friendIds.includes(u.uid));
     document.getElementById('p-friends').textContent = friends.length;
     if (!friends.length) {
-      listEl.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:32px 20px;text-align:center"><div style="font-size:42px;opacity:.25">👥</div><div style="font-size:15px;font-weight:700;color:var(--t2)">Aucun ami pour l'instant</div><div style="font-size:13px;color:var(--t3)">Cherche des amis par leur @pseudo</div><button onclick="S('s-addfriend')" style="margin-top:4px;padding:11px 24px;border-radius:50px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:14px;font-weight:700">+ Ajouter un ami</button></div>`;
+      if(listEl)listEl.innerHTML = '<div style="font-size:13px;color:var(--t3);padding:12px 4px">Aucun ami pour l\'instant</div>';
     } else {
       listEl.innerHTML = `<div style="background:var(--bg2);border-radius:18px;overflow:hidden;border:1px solid var(--border)">` +
         friends.map(u => `<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer" onclick="openConv('${u.uid}','${x(u.displayName)}','${x(u.username)}','')">
