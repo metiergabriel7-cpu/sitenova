@@ -710,25 +710,14 @@ body::before{
 /* ── FENÊTRES FLOTTANTES PARTAGE ── */
 .share-window {
   position: absolute;
-  z-index: 6;
+  z-index: 10;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0,0,0,.7);
-  border: 2px solid rgba(255,255,255,.25);
+  box-shadow: 0 8px 32px rgba(0,0,0,.8);
+  border: 2px solid rgba(255,255,255,.3);
   cursor: pointer;
-  transition: transform .2s, box-shadow .2s;
   background: #111;
-}
-.share-window:hover { box-shadow: 0 12px 40px rgba(0,0,0,.9); }
-.share-window.local {
-  bottom: calc(160px + env(safe-area-inset-bottom,0px));
-  right: 16px;
-  width: 110px; height: 160px;
-}
-.share-window.remote {
-  bottom: calc(160px + env(safe-area-inset-bottom,0px));
-  left: 16px;
-  width: 110px; height: 160px;
+  transition: box-shadow .2s;
 }
 .share-window video {
   width: 100%; height: 100%;
@@ -736,28 +725,20 @@ body::before{
 }
 .share-window-label {
   position: absolute; bottom: 0; left: 0; right: 0;
-  padding: 6px 8px;
-  background: linear-gradient(to top, rgba(0,0,0,.7), transparent);
+  padding: 5px 8px;
+  background: linear-gradient(to top, rgba(0,0,0,.8), transparent);
   font-size: 10px; font-weight: 700; color: #fff;
   font-family: var(--ff);
-  display: flex; align-items: center; gap: 4px;
 }
 .share-window-expand {
-  position: absolute; top: 6px; right: 6px;
-  width: 24px; height: 24px; border-radius: 6px;
-  background: rgba(0,0,0,.5); backdrop-filter: blur(4px);
+  position: absolute; top: 5px; right: 5px;
+  width: 22px; height: 22px; border-radius: 6px;
+  background: rgba(0,0,0,.6);
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; color: #fff; cursor: pointer;
+  font-size: 11px; color: #fff;
 }
-.share-window.fullscreen-active {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important; height: 100vh !important;
-  border-radius: 0 !important;
-  z-index: 99999;
-  right: auto !important; left: auto !important;
-  bottom: auto !important; top: auto !important;
-}
+
+/* Plein écran via JS (pas CSS pour éviter les conflits) */
 
 /* Fond appel vocal (sans vidéo) */
 #call-screen{
@@ -767,11 +748,6 @@ body::before{
   align-items:center;justify-content:center;
 }
 #call-screen.active{display:flex}
-
-#call-remote-video{
-  position:absolute;inset:0;width:100%;height:100%;
-  object-fit:cover;background:#111;display:none;
-}
 
 /* Fond dégradé animé pendant l'appel */
 #call-remote-placeholder{
@@ -1502,14 +1478,14 @@ const firebaseConfig = {
   </div>
 
   <!-- Fenêtre flottante : MA caméra (coin bas droit) -->
-  <div class="share-window local" id="win-local" style="display:none" onclick="toggleWinFS('win-local')">
+  <div class="share-window" id="win-local" style="display:none;bottom:calc(160px + env(safe-area-inset-bottom,0px));right:16px;width:110px;height:160px" onclick="toggleWinFS('win-local')">
     <video id="call-local-video" autoplay muted playsinline></video>
     <div class="share-window-label">📷 Moi</div>
     <div class="share-window-expand">⤢</div>
   </div>
 
   <!-- Fenêtre flottante : CAMÉRA DE L'AUTRE (coin bas gauche) -->
-  <div class="share-window remote" id="win-remote" style="display:none" onclick="toggleWinFS('win-remote')">
+  <div class="share-window" id="win-remote" style="display:none;bottom:calc(160px + env(safe-area-inset-bottom,0px));left:16px;width:110px;height:160px" onclick="toggleWinFS('win-remote')">
     <video id="call-remote-video" autoplay playsinline></video>
     <div class="share-window-label" id="win-remote-label">📷 Lui</div>
     <div class="share-window-expand">⤢</div>
@@ -4555,10 +4531,14 @@ function endCall() {
   if (screenBtn) { screenBtn.querySelector('.call-btn-ic').textContent = '🖥️'; screenBtn.querySelector('.call-btn-lbl').textContent = 'Écran'; screenBtn.classList.remove('on'); }
   // Sortir du plein écran si actif
   if (document.fullscreenElement) { document.exitFullscreen().catch(()=>{}); }
-  // Fermer toutes les fenêtres flottantes
+  // Fermer toutes les fenêtres flottantes proprement
   ['win-local','win-remote','win-screen-local','win-screen-remote'].forEach(id => {
     const w = document.getElementById(id);
-    if (w) { w.style.display = 'none'; w.classList.remove('fullscreen-active'); }
+    if (!w) return;
+    w._isFullscreen = false;
+    w.style.display = 'none';
+    // Restaurer le style original si sauvegardé
+    if (_winOrigStyle[id]) { w.style.cssText = _winOrigStyle[id]; w.style.display = 'none'; }
   });
   // Vider les vidéos
   ['call-local-video','call-remote-video','call-screen-video','call-screen-remote-video'].forEach(id => {
@@ -4705,22 +4685,45 @@ async function flipCallCam() {
 }
 
 // ── Fenêtres flottantes — agrandir/réduire ──
+const _winOrigStyle = {}; // sauvegarder les styles originaux
+
 function toggleWinFS(winId) {
   const win = document.getElementById(winId);
   if (!win) return;
-  if (win.classList.contains('fullscreen-active')) {
-    win.classList.remove('fullscreen-active');
-    win.querySelector('.share-window-expand').textContent = '⤢';
-  } else {
-    // Fermer les autres fullscreen
-    document.querySelectorAll('.share-window.fullscreen-active').forEach(w => {
-      w.classList.remove('fullscreen-active');
-      w.querySelector('.share-window-expand').textContent = '⤢';
-    });
-    win.classList.add('fullscreen-active');
-    win.querySelector('.share-window-expand').textContent = '✕';
-  }
   playSound('click');
+
+  if (win._isFullscreen) {
+    // Réduire — restaurer le style original
+    win._isFullscreen = false;
+    const orig = _winOrigStyle[winId];
+    if (orig) {
+      win.style.cssText = orig;
+    }
+    const exp = win.querySelector('.share-window-expand');
+    if (exp) exp.textContent = '⤢';
+  } else {
+    // Agrandir — sauvegarder et passer en plein écran
+    _winOrigStyle[winId] = win.style.cssText;
+    win._isFullscreen = true;
+    win.style.cssText = `
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw; height: 100vh;
+      border-radius: 0;
+      border: none;
+      z-index: 99999;
+      background: #000;
+      cursor: pointer;
+    `;
+    const exp = win.querySelector('.share-window-expand');
+    if (exp) exp.textContent = '✕';
+    // Fermer les autres
+    ['win-local','win-remote','win-screen-local','win-screen-remote'].forEach(id => {
+      if (id === winId) return;
+      const w = document.getElementById(id);
+      if (w && w._isFullscreen) toggleWinFS(id);
+    });
+  }
 }
 window.toggleWinFS = toggleWinFS;
 
