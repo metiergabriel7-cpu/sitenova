@@ -707,6 +707,59 @@ body::before{
 .upload-prev-empty .tx{font-size:16px;font-weight:600}
 
 /* ── APPELS VIDÉO / AUDIO ── */
+/* ── FENÊTRES FLOTTANTES PARTAGE ── */
+.share-window {
+  position: absolute;
+  z-index: 6;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,.7);
+  border: 2px solid rgba(255,255,255,.25);
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+  background: #111;
+}
+.share-window:hover { box-shadow: 0 12px 40px rgba(0,0,0,.9); }
+.share-window.local {
+  bottom: calc(160px + env(safe-area-inset-bottom,0px));
+  right: 16px;
+  width: 110px; height: 160px;
+}
+.share-window.remote {
+  bottom: calc(160px + env(safe-area-inset-bottom,0px));
+  left: 16px;
+  width: 110px; height: 160px;
+}
+.share-window video {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+.share-window-label {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 6px 8px;
+  background: linear-gradient(to top, rgba(0,0,0,.7), transparent);
+  font-size: 10px; font-weight: 700; color: #fff;
+  font-family: var(--ff);
+  display: flex; align-items: center; gap: 4px;
+}
+.share-window-expand {
+  position: absolute; top: 6px; right: 6px;
+  width: 24px; height: 24px; border-radius: 6px;
+  background: rgba(0,0,0,.5); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: #fff; cursor: pointer;
+}
+.share-window.fullscreen-active {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important; height: 100vh !important;
+  border-radius: 0 !important;
+  z-index: 99999;
+  right: auto !important; left: auto !important;
+  bottom: auto !important; top: auto !important;
+}
+
+/* Fond appel vocal (sans vidéo) */
 #call-screen{
   position:fixed;inset:0;z-index:9900;
   background:#000;
@@ -1436,10 +1489,7 @@ const firebaseConfig = {
 <!-- ═══ ÉCRAN APPEL ═══ -->
 <div id="call-screen">
 
-  <!-- Vidéo distante — plein écran en fond -->
-  <video id="call-remote-video" autoplay playsinline style="display:none;cursor:pointer" title="Appuie pour agrandir" onclick="toggleVideoFS(this)"></video>
-
-  <!-- Placeholder quand pas encore de vidéo -->
+  <!-- Fond : avatar + infos appel -->
   <div id="call-remote-placeholder">
     <div class="call-av-wrap">
       <div class="call-av-ring"></div>
@@ -1451,13 +1501,32 @@ const firebaseConfig = {
     <div id="call-status-txt"><div class="call-status-dot"></div>Appel en cours...</div>
   </div>
 
-  <!-- Miniature locale (ta caméra) — coin haut droit -->
-  <video id="call-local-video" autoplay muted playsinline style="cursor:pointer" title="Appuie pour agrandir" onclick="toggleVideoFS(this)"></video>
-  <div id="call-local-label">Moi 📷</div>
+  <!-- Fenêtre flottante : MA caméra (coin bas droit) -->
+  <div class="share-window local" id="win-local" style="display:none" onclick="toggleWinFS('win-local')">
+    <video id="call-local-video" autoplay muted playsinline></video>
+    <div class="share-window-label">📷 Moi</div>
+    <div class="share-window-expand">⤢</div>
+  </div>
 
-  <!-- Hint "appuie pour agrandir" -->
-  <div id="call-tap-hint" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(8px);padding:10px 18px;border-radius:50px;font-size:13px;color:rgba(255,255,255,.85);font-family:var(--ff);pointer-events:none;opacity:0;transition:opacity .3s;z-index:5">
-    👆 Appuie pour agrandir
+  <!-- Fenêtre flottante : CAMÉRA DE L'AUTRE (coin bas gauche) -->
+  <div class="share-window remote" id="win-remote" style="display:none" onclick="toggleWinFS('win-remote')">
+    <video id="call-remote-video" autoplay playsinline></video>
+    <div class="share-window-label" id="win-remote-label">📷 Lui</div>
+    <div class="share-window-expand">⤢</div>
+  </div>
+
+  <!-- Fenêtre flottante : MON ÉCRAN PARTAGÉ -->
+  <div class="share-window" id="win-screen-local" style="display:none;bottom:calc(160px + env(safe-area-inset-bottom,0px));right:140px;width:110px;height:160px" onclick="toggleWinFS('win-screen-local')">
+    <video id="call-screen-video" autoplay muted playsinline></video>
+    <div class="share-window-label">🖥️ Mon écran</div>
+    <div class="share-window-expand">⤢</div>
+  </div>
+
+  <!-- Fenêtre flottante : ÉCRAN DE L'AUTRE -->
+  <div class="share-window" id="win-screen-remote" style="display:none;bottom:calc(160px + env(safe-area-inset-bottom,0px));left:140px;width:110px;height:160px" onclick="toggleWinFS('win-screen-remote')">
+    <video id="call-screen-remote-video" autoplay playsinline></video>
+    <div class="share-window-label">🖥️ Son écran</div>
+    <div class="share-window-expand">⤢</div>
   </div>
 
   <div id="call-topbar">
@@ -4252,24 +4321,22 @@ async function startCall(type) {
     });
     const lv = document.getElementById('call-local-video');
     lv.srcObject = _localStream;
-    lv.style.display = type === 'video' ? 'block' : 'none';
+    // Afficher la fenêtre locale si caméra active
+    const winLocalSC = document.getElementById('win-local');
+    if (winLocalSC) winLocalSC.style.display = type === 'video' ? 'block' : 'none';
 
     _pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     _localStream.getTracks().forEach(t => _pc.addTrack(t, _localStream));
     _pc.ontrack = e => {
       _remoteStream = e.streams[0];
       const rv = document.getElementById('call-remote-video');
-      rv.srcObject = _remoteStream;
-      rv.style.display = 'block';
-      rv.style.cursor = 'pointer';
-      rv.title = 'Appuie pour agrandir';
-      rv.onclick = () => toggleVideoFS(rv);
-      document.getElementById('call-remote-placeholder').style.display = 'none';
-      // Mettre à jour le statut
-      document.getElementById('call-status-txt').textContent = '🟢 En communication';
-      document.getElementById('call-status-txt').classList.add('connected');
-      // Montrer le hint pendant 2.5s
-      showCallHint();
+      if (rv) rv.srcObject = _remoteStream;
+      // Afficher la fenêtre distante
+      const winRemote = document.getElementById('win-remote');
+      if (winRemote) winRemote.style.display = 'block';
+      // Statut
+      const st = document.getElementById('call-status-txt');
+      if (st) { st.textContent = '🟢 En communication'; st.classList.add('connected'); }
     };
     _pc.onicecandidate = async e => {
       if (!e.candidate) return;
@@ -4413,22 +4480,19 @@ async function acceptCall() {
     });
     const lv = document.getElementById('call-local-video');
     lv.srcObject = _localStream;
-    lv.style.display = _callType === 'video' ? 'block' : 'none';
+    const winLocalAc = document.getElementById('win-local');
+    if (winLocalAc) winLocalAc.style.display = _callType === 'video' ? 'block' : 'none';
 
     _pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     _localStream.getTracks().forEach(t => _pc.addTrack(t, _localStream));
     _pc.ontrack = e => {
       _remoteStream = e.streams[0];
       const rv = document.getElementById('call-remote-video');
-      rv.srcObject = _remoteStream;
-      rv.style.display = 'block';
-      rv.style.cursor = 'pointer';
-      rv.title = 'Appuie pour agrandir';
-      rv.onclick = () => toggleVideoFS(rv);
-      document.getElementById('call-remote-placeholder').style.display = 'none';
-      document.getElementById('call-status-txt').textContent = '🟢 En communication';
-      document.getElementById('call-status-txt').classList.add('connected');
-      showCallHint();
+      if (rv) rv.srcObject = _remoteStream;
+      const winRemote = document.getElementById('win-remote');
+      if (winRemote) winRemote.style.display = 'block';
+      const st = document.getElementById('call-status-txt');
+      if (st) { st.textContent = '🟢 En communication'; st.classList.add('connected'); }
     };
     _pc.onicecandidate = async e => {
       if (!e.candidate) return;
@@ -4491,14 +4555,20 @@ function endCall() {
   if (screenBtn) { screenBtn.querySelector('.call-btn-ic').textContent = '🖥️'; screenBtn.querySelector('.call-btn-lbl').textContent = 'Écran'; screenBtn.classList.remove('on'); }
   // Sortir du plein écran si actif
   if (document.fullscreenElement) { document.exitFullscreen().catch(()=>{}); }
+  // Fermer toutes les fenêtres flottantes
+  ['win-local','win-remote','win-screen-local','win-screen-remote'].forEach(id => {
+    const w = document.getElementById(id);
+    if (w) { w.style.display = 'none'; w.classList.remove('fullscreen-active'); }
+  });
+  // Vider les vidéos
+  ['call-local-video','call-remote-video','call-screen-video','call-screen-remote-video'].forEach(id => {
+    const v = document.getElementById(id); if (v) v.srcObject = null;
+  });
   _remoteStream = null; _isMuted = false; _isCamOff = false; _callSeconds = 0;
   if (_callCid) { writeSig(_callCid, 'status', { state: 'ended', from: me?.uid }); setTimeout(() => clearSig(_callCid), 2000); }
   _callCid = null;
   document.getElementById('call-screen').classList.remove('active');
   document.getElementById('call-incoming').classList.remove('active');
-  const rv = document.getElementById('call-remote-video');
-  if (rv) { rv.srcObject = null; rv.onclick = null; rv.style.cursor = ''; rv.style.display = 'none'; }
-  const lv = document.getElementById('call-local-video'); if (lv) { lv.srcObject = null; }
   document.getElementById('call-timer').style.display = 'none';
   if (navigator.vibrate) navigator.vibrate(0);
 }
@@ -4534,11 +4604,10 @@ async function toggleScreenShare() {
     _isSharing = false;
     if (_screenStream) { _screenStream.getTracks().forEach(t => t.stop()); _screenStream = null; }
     if (btn) { btn.querySelector('.call-btn-ic').textContent = '🖥️'; btn.querySelector('.call-btn-lbl').textContent = 'Écran'; btn.classList.remove('on'); }
-    // Revenir miniature caméra
-    const lv = document.getElementById('call-local-video');
-    if (lv && _localStream) { lv.srcObject = _localStream; lv.style.display = _callType === 'video' ? 'block' : 'none'; lv.onclick = null; lv.style.cursor = ''; }
-    const lbl = document.getElementById('call-local-label');
-    if (lbl) lbl.textContent = 'Moi';
+    // Cacher la fenêtre partage local
+    const wsl = document.getElementById('win-screen-local');
+    if (wsl) { wsl.style.display = 'none'; wsl.classList.remove('fullscreen-active'); }
+    // Revenir piste caméra
     if (_localStream && _pc) {
       const vt = _localStream.getVideoTracks()[0];
       if (vt) { const s = _pc.getSenders().find(s => s.track?.kind === 'video'); if (s) await s.replaceTrack(vt); }
@@ -4551,50 +4620,28 @@ async function toggleScreenShare() {
     _screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
     const screenTrack = _screenStream.getVideoTracks()[0];
 
-    // Envoyer l'écran via WebRTC à l'autre
+    // Envoyer l'écran via WebRTC
     if (_pc) {
       const sender = _pc.getSenders().find(s => s.track?.kind === 'video');
       if (sender) await sender.replaceTrack(screenTrack);
       else _pc.addTrack(screenTrack, _screenStream);
     }
 
-    // Miniature locale = ta caméra (pas l'écran)
-    const lv = document.getElementById('call-local-video');
-    if (lv && _localStream && _localStream.getVideoTracks().length) {
-      lv.srcObject = _localStream;
-      lv.style.display = 'block';
-      lv.style.cursor = 'pointer';
-      lv.title = 'Cliquer pour plein écran';
-      lv.onclick = () => {
-        if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
-        else lv.requestFullscreen?.().catch(()=>{});
-      };
-    }
-    const lbl = document.getElementById('call-local-label');
-    if (lbl) lbl.textContent = '📷 Cam';
-
-    // Vidéo distante cliquable = plein écran
-    const rv = document.getElementById('call-remote-video');
-    if (rv) {
-      rv.style.cursor = 'pointer';
-      rv.title = 'Cliquer pour plein écran';
-      rv.onclick = () => {
-        if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
-        else rv.requestFullscreen?.().catch(()=>{});
-      };
-    }
+    // Afficher dans la fenêtre locale "Mon écran"
+    const screenVid = document.getElementById('call-screen-video');
+    if (screenVid) screenVid.srcObject = _screenStream;
+    const wsl = document.getElementById('win-screen-local');
+    if (wsl) wsl.style.display = 'block';
 
     _isSharing = true;
     if (btn) { btn.querySelector('.call-btn-ic').textContent = '⏹️'; btn.querySelector('.call-btn-lbl').textContent = 'Stop'; btn.classList.add('on'); }
-    toast("📺 Partage actif — l'autre voit ton écran, clique pour agrandir", 'ok');
+    toast("📺 Partage actif — clique sur la fenêtre pour agrandir", 'ok');
 
     screenTrack.onended = () => {
       _isSharing = false; _screenStream = null;
       if (btn) { btn.querySelector('.call-btn-ic').textContent = '🖥️'; btn.querySelector('.call-btn-lbl').textContent = 'Écran'; btn.classList.remove('on'); }
-      const lv2 = document.getElementById('call-local-video');
-      if (lv2 && _localStream) { lv2.srcObject = _localStream; lv2.onclick = null; lv2.style.cursor = ''; }
-      const lbl2 = document.getElementById('call-local-label');
-      if (lbl2) lbl2.textContent = 'Moi';
+      const wsl2 = document.getElementById('win-screen-local');
+      if (wsl2) { wsl2.style.display = 'none'; wsl2.classList.remove('fullscreen-active'); }
     };
   } catch(e) {
     if (e.name !== 'NotAllowedError') toast("Partage d'écran non disponible", 'err');
@@ -4625,7 +4672,9 @@ function toggleCamInCall() {
     btn.querySelector('.call-btn-lbl').textContent = _isCamOff ? 'Caméra off' : 'Caméra';
     btn.classList.toggle('on', _isCamOff);
   }
-  document.getElementById('call-local-video').style.opacity = _isCamOff ? '0.3' : '1';
+  // Afficher/cacher la fenêtre locale
+  const winLocal = document.getElementById('win-local');
+  if (winLocal) winLocal.style.display = _isCamOff ? 'none' : 'block';
   playSound('click');
 }
 
@@ -4655,21 +4704,33 @@ async function flipCallCam() {
   } catch(_) { toast('Impossible de retourner la caméra', 'err'); }
 }
 
-// Plein écran universel — fonctionne sur n'importe quelle vidéo
+// ── Fenêtres flottantes — agrandir/réduire ──
+function toggleWinFS(winId) {
+  const win = document.getElementById(winId);
+  if (!win) return;
+  if (win.classList.contains('fullscreen-active')) {
+    win.classList.remove('fullscreen-active');
+    win.querySelector('.share-window-expand').textContent = '⤢';
+  } else {
+    // Fermer les autres fullscreen
+    document.querySelectorAll('.share-window.fullscreen-active').forEach(w => {
+      w.classList.remove('fullscreen-active');
+      w.querySelector('.share-window-expand').textContent = '⤢';
+    });
+    win.classList.add('fullscreen-active');
+    win.querySelector('.share-window-expand').textContent = '✕';
+  }
+  playSound('click');
+}
+window.toggleWinFS = toggleWinFS;
+
 function toggleVideoFS(videoEl) {
   if (!videoEl) return;
-  if (document.fullscreenElement === videoEl) {
-    document.exitFullscreen().catch(() => {});
-  } else {
-    videoEl.requestFullscreen?.().catch(() => {
-      // Fallback iOS
-      if (videoEl.webkitEnterFullscreen) videoEl.webkitEnterFullscreen();
-    });
-  }
+  if (document.fullscreenElement === videoEl) document.exitFullscreen().catch(()=>{});
+  else videoEl.requestFullscreen?.().catch(()=>{});
 }
 window.toggleVideoFS = toggleVideoFS;
 
-// Montrer le hint "appuie pour agrandir" pendant 2s quand la vidéo distante apparaît
 function showCallHint() {
   const hint = document.getElementById('call-tap-hint');
   if (!hint) return;
@@ -4682,7 +4743,6 @@ function toggleLocalVideo() {
   const v = document.getElementById('call-local-video');
   if (v) v.style.opacity = v.style.opacity === '0' ? '1' : '0';
 }
-// Alias pour compatibilité
 function toggleLocalVideoFS() { toggleVideoFS(document.getElementById('call-local-video')); }
 window.toggleLocalVideoFS = toggleLocalVideoFS;
 
