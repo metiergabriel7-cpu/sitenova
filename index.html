@@ -1999,6 +1999,9 @@ async function startRealtimeSync() {
       }
       _lastKnownReqs = [...reqs];
 
+      // Typing dans la liste des contacts
+      updateListTypingIndicators();
+
       if (getCurrentId() === 's-friends') loadFriends();
     }, 1000);
     return;
@@ -2471,14 +2474,22 @@ function renderConvItem(uid, name, username, lastMsg, time, unread, cid) {
   const preview = lastMsg
     ? `<span>${x(lastMsg)}</span>`
     : `<span style="color:var(--e2);font-style:italic">Dis bonjour ! 👋</span>`;
-  return `<div class="cv" onclick="openConv('${uid}','${x(name)}','${x(username)}','${cvid}')">
+  return `<div class="cv" data-uid="${uid}" data-name="${x(name)}" data-username="${x(username)}" data-cid="${cvid}"
+    onclick="openConv('${uid}','${x(name)}','${x(username)}','${cvid}')"
+    oncontextmenu="event.preventDefault();openConvMenu('${uid}','${x(name)}','${x(username)}')"
+    ontouchstart="cvTouchStart(this,'${uid}','${x(name)}','${x(username)}')"
+    ontouchend="cvTouchEnd()"
+    ontouchmove="cvTouchEnd()">
     <div class="cv-av-wrap" style="position:relative">
       <div class="av s52" style="overflow:hidden">${avContent}</div>
       <div style="position:absolute;bottom:2px;right:2px;width:12px;height:12px;border-radius:50%;background:var(--green);border:2.5px solid var(--bg1)"></div>
     </div>
     <div class="cv-body">
       <div class="cv-name">${x(name)}</div>
-      <div class="cv-preview ${unread ? 'unread' : ''}">${preview}</div>
+      <div class="cv-preview ${unread ? 'unread' : ''}" id="cv-preview-${uid}">${preview}</div>
+      <div class="cv-typing" id="cv-typing-${uid}" style="display:none;font-size:12px;color:var(--e2);font-style:italic;margin-top:1px">
+        est en train d'écrire<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>
+      </div>
     </div>
     <div class="cv-side">
       <div class="cv-time">${time}</div>
@@ -2486,6 +2497,187 @@ function renderConvItem(uid, name, username, lastMsg, time, unread, cid) {
     </div>
   </div>`;
 }
+
+// Typing dans la liste des contacts
+function updateListTypingIndicators() {
+  if (!me) return;
+  document.querySelectorAll('.cv[data-uid]').forEach(el => {
+    const uid = el.dataset.uid;
+    if (!uid) return;
+    const cid = convKey(me.uid, uid);
+    const tk = 'nova_typing_' + cid;
+    const td = JSON.parse(localStorage.getItem(tk) || '{}');
+    const isTyping = td[uid] && (Date.now() - td[uid]) < 4000;
+    const previewEl = document.getElementById('cv-preview-' + uid);
+    const typingEl = document.getElementById('cv-typing-' + uid);
+    if (previewEl && typingEl) {
+      if (isTyping) {
+        previewEl.style.display = 'none';
+        typingEl.style.display = 'block';
+      } else {
+        previewEl.style.display = '';
+        typingEl.style.display = 'none';
+      }
+    }
+  });
+}
+window.updateListTypingIndicators = updateListTypingIndicators;
+let _cvPressTimer = null;
+function cvTouchStart(el, uid, name, username) {
+  _cvPressTimer = setTimeout(() => {
+    openConvMenu(uid, name, username);
+  }, 600);
+}
+function cvTouchEnd() {
+  clearTimeout(_cvPressTimer);
+}
+window.cvTouchStart = cvTouchStart;
+window.cvTouchEnd = cvTouchEnd;
+
+// ── Menu contextuel contact ──
+function openConvMenu(uid, name, username) {
+  playSound('click');
+  const existing = document.getElementById('conv-menu-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'conv-menu-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9980;display:flex;align-items:flex-end;backdrop-filter:blur(8px)';
+
+  const nick = getNickname(uid);
+  const displayName = nick || name;
+
+  overlay.innerHTML = `
+    <div style="width:100%;background:var(--bg2);border-radius:24px 24px 0 0;padding:16px 0 calc(20px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border)">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 20px 16px;border-bottom:1px solid var(--border);margin-bottom:8px">
+        <div class="av s44">${initials(displayName)}</div>
+        <div>
+          <div style="font-size:16px;font-weight:800;color:var(--t1);font-family:var(--ff)">${x(displayName)}</div>
+          <div style="font-size:12px;color:var(--t3)">@${x(username)}</div>
+        </div>
+      </div>
+      <!-- Options -->
+      <div onclick="openConv('${uid}','${x(name)}','${x(username)}','');document.getElementById('conv-menu-overlay').remove()"
+        style="display:flex;align-items:center;gap:14px;padding:15px 20px;cursor:pointer" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        <div style="font-size:22px">💬</div>
+        <div style="font-size:15px;font-weight:600;color:var(--t1);font-family:var(--ff)">Envoyer un message</div>
+      </div>
+      <div onclick="openConvNickname('${uid}','${x(name)}');document.getElementById('conv-menu-overlay').remove()"
+        style="display:flex;align-items:center;gap:14px;padding:15px 20px;cursor:pointer" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        <div style="font-size:22px">✏️</div>
+        <div style="font-size:15px;font-weight:600;color:var(--t1);font-family:var(--ff)">${nick ? 'Modifier le surnom' : 'Ajouter un surnom'}</div>
+      </div>
+      <div onclick="createGroupWith('${uid}','${x(name)}');document.getElementById('conv-menu-overlay').remove()"
+        style="display:flex;align-items:center;gap:14px;padding:15px 20px;cursor:pointer" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        <div style="font-size:22px">👥</div>
+        <div style="font-size:15px;font-weight:600;color:var(--t1);font-family:var(--ff)">Créer un groupe</div>
+      </div>
+      <div onclick="confirmRemoveContact('${uid}','${x(name)}');document.getElementById('conv-menu-overlay').remove()"
+        style="display:flex;align-items:center;gap:14px;padding:15px 20px;cursor:pointer" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        <div style="font-size:22px">🗑️</div>
+        <div style="font-size:15px;font-weight:600;color:var(--red);font-family:var(--ff)">Supprimer le contact</div>
+      </div>
+    </div>`;
+
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+window.openConvMenu = openConvMenu;
+
+// Surnom depuis la liste
+function openConvNickname(uid, name) {
+  const current = getNickname(uid) || '';
+  const overlay = document.createElement('div');
+  overlay.id = 'nick-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9985;display:flex;align-items:flex-end;backdrop-filter:blur(10px)';
+  overlay.innerHTML = `
+    <div style="width:100%;background:var(--bg2);border-radius:24px 24px 0 0;padding:24px 20px calc(28px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border)">
+      <div style="font-size:17px;font-weight:800;font-family:var(--ff);margin-bottom:6px">✏️ Surnom pour ${x(name)}</div>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:16px">Visible uniquement par toi</div>
+      <input id="nick-input-list" value="${x(current)}" maxlength="30" placeholder="Surnom..."
+        style="width:100%;background:var(--bg3);border:1.5px solid var(--border2);border-radius:14px;padding:15px 18px;font-size:16px;color:var(--t1);font-family:var(--ff);outline:none;margin-bottom:12px">
+      <div style="display:flex;gap:10px">
+        <button onclick="saveNicknameFromList('${uid}','${x(name)}')" style="flex:2;padding:14px;border-radius:14px;background:var(--grad);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:15px;font-weight:700">💾 Sauvegarder</button>
+        ${current ? `<button onclick="removeNicknameFromList('${uid}')" style="flex:1;padding:14px;border-radius:14px;background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.25);cursor:pointer;font-family:var(--ff);font-size:14px">✕ Retirer</button>` : ''}
+      </div>
+    </div>`;
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('nick-input-list')?.focus(), 100);
+}
+window.openConvNickname = openConvNickname;
+
+function saveNicknameFromList(uid, name) {
+  const input = document.getElementById('nick-input-list');
+  const nick = input?.value?.trim()?.slice(0, 30) || '';
+  setNickname(uid, nick);
+  document.getElementById('nick-overlay')?.remove();
+  playSound('ok');
+  toast(nick ? `Surnom "${nick}" enregistré ✓` : 'Surnom retiré', 'ok');
+  loadConversations();
+}
+window.saveNicknameFromList = saveNicknameFromList;
+
+function removeNicknameFromList(uid) {
+  setNickname(uid, null);
+  document.getElementById('nick-overlay')?.remove();
+  playSound('click');
+  toast('Surnom retiré', 'inf');
+  loadConversations();
+}
+window.removeNicknameFromList = removeNicknameFromList;
+
+// Supprimer contact
+function confirmRemoveContact(uid, name) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9985;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px)';
+  overlay.innerHTML = `<div style="background:var(--bg2);border-radius:20px;padding:24px;width:100%;max-width:320px;border:1px solid rgba(248,113,113,.2)">
+    <div style="font-size:28px;text-align:center;margin-bottom:12px">🗑️</div>
+    <div style="font-size:17px;font-weight:800;text-align:center;margin-bottom:8px">Supprimer ${x(name)} ?</div>
+    <div style="font-size:13px;color:var(--t2);text-align:center;margin-bottom:20px">La conversation et l'amitié seront supprimées.</div>
+    <div style="display:flex;gap:10px">
+      <button onclick="this.closest('div[style]').remove()" style="flex:1;padding:13px;border-radius:12px;background:var(--bg3);color:var(--t1);border:1px solid var(--border);cursor:pointer;font-family:var(--ff);font-size:14px">Annuler</button>
+      <button onclick="removeContact('${uid}');this.closest('div[style]').remove()" style="flex:1;padding:13px;border-radius:12px;background:var(--red);color:#fff;border:none;cursor:pointer;font-family:var(--ff);font-size:14px;font-weight:700">Supprimer</button>
+    </div>
+  </div>`;
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+window.confirmRemoveContact = confirmRemoveContact;
+
+async function removeContact(uid) {
+  if (!fb?.db) {
+    // Mode local — retirer des amis + supprimer conv
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    const me_ = users.find(u => u.uid === me.uid);
+    const other = users.find(u => u.uid === uid);
+    if (me_) me_.friends = (me_.friends || []).filter(f => f !== uid);
+    if (other) other.friends = (other.friends || []).filter(f => f !== me.uid);
+    localStorage.setItem('nova_users', JSON.stringify(users));
+    const cid = convKey(me.uid, uid);
+    localStorage.removeItem('nova_msgs_' + cid);
+    myFriendIds = myFriendIds.filter(f => f !== uid);
+  } else {
+    try {
+      const { doc, updateDoc, arrayRemove } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      await updateDoc(doc(fb.db, 'users', me.uid), { friends: arrayRemove(uid) });
+      await updateDoc(doc(fb.db, 'users', uid), { friends: arrayRemove(me.uid) });
+      myFriendIds = myFriendIds.filter(f => f !== uid);
+    } catch(e) { toast('Erreur: ' + e.message, 'err'); return; }
+  }
+  playSound('hangup');
+  toast('Contact supprimé', 'ok');
+  loadConversations();
+  updateHomeFriendsCount();
+}
+window.removeContact = removeContact;
+
+// Créer un groupe (UI basique pour l'instant)
+function createGroupWith(uid, name) {
+  toast('Groupes disponibles prochainement 🚀', 'inf');
+}
+window.createGroupWith = createGroupWith;
 
 function filterConvs(q) {
   if (!q) { loadConversations(); return; }
