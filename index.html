@@ -3493,19 +3493,36 @@ function stopVoiceMsgRec() {
   if (btn) btn.classList.remove('recording');
 }
 
-function sendVoiceMsg(audioDataUrl, dur) {
+async function sendVoiceMsg(audioDataUrl, dur) {
   if (!me || !convId) return;
   const now = new Date();
   const msgData = { from: me.uid, text: null, type: 'voice', audioUrl: audioDataUrl, duration: dur, status: 'delivered', ts: now.toISOString() };
+
+  // ── Mode local ──
   if (!fb?.db) {
     const msgs = saveLocalMsg(convId, msgData);
     renderMessages(msgs.map(m => ({ ...m, ts: new Date(m.ts) })));
-    loadConversations();
+    setTimeout(loadConversations, 100);
     playSound('msg');
     return;
   }
-  // Firebase : même logique que sendMsg
-  toast('Message vocal envoyé 🎤', 'ok');
+
+  // ── Firebase ──
+  try {
+    const { collection, addDoc, doc, setDoc, getDoc, updateDoc, increment, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    await ensureConv(doc, setDoc, getDoc, serverTimestamp, '🎤 Vocal');
+    await updateDoc(doc(fb.db, 'conversations', convId), {
+      lastText: '🎤 Vocal',
+      lastTime: serverTimestamp(),
+      [`unread.${otherUser.uid}`]: increment(1)
+    });
+    await addDoc(collection(fb.db, 'conversations', convId, 'messages'), {
+      from: me.uid, text: null, type: 'voice',
+      audioUrl: audioDataUrl, duration: dur,
+      status: 'delivered', ts: serverTimestamp()
+    });
+    playSound('msg');
+  } catch(e) { toast('Erreur envoi vocal: ' + e.message, 'err'); }
 }
 window.startVoiceMsgRec = startVoiceMsgRec;
 window.stopVoiceMsgRec = stopVoiceMsgRec;
