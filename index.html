@@ -751,6 +751,17 @@ body::before {
 .vdesc { font-size: 14px; color: rgba(255,255,255,.8); line-height: 1.5; margin-bottom: 8px; }
 .vmusic { display: flex; align-items: center; gap: 5px; font-size: 12px; color: rgba(255,255,255,.6); font-family: var(--ff-mono); }
 .vnote { animation: spin 4s linear infinite; display: inline-block; }
+.v-pause-ic {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  font-size: 64px; z-index: 3; opacity: 0; pointer-events: none;
+  transition: opacity .2s; text-shadow: 0 4px 24px rgba(0,0,0,.8);
+}
+.v-pause-ic.show { opacity: 1; }
+.v-prog {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: rgba(255,255,255,.15); z-index: 3;
+}
+.v-prog-fill { height: 100%; background: var(--grad); width: 0; transition: width .25s linear; }
 @keyframes spin { to{transform:rotate(360deg)} }
 .vactions {
   position: absolute; right: 12px; bottom: 90px;
@@ -1611,8 +1622,8 @@ const firebaseConfig = {
         <div class="call-btn-ic">🔊</div>
         <div class="call-btn-lbl">Son</div>
       </div>
-      <div class="call-btn" id="btn-screen" onclick="toggleScreenShare()">
-        <div class="call-btn-ic">🖥️</div>
+      <div class="call-btn" id="btn-screen" onclick="toast('🚧 Partage d\'écran en fabrication','inf')">
+        <div class="call-btn-ic" style="position:relative">🖥️<span style="position:absolute;top:-4px;right:-4px;font-size:10px">🚧</span></div>
         <div class="call-btn-lbl">Écran</div>
       </div>
     </div>
@@ -4201,11 +4212,29 @@ function switchProfileTab(tab) {
     vidsTab.style.display = 'none';
     if (tabGrid) { tabGrid.style.borderBottomColor = 'var(--e1)'; tabGrid.style.color = 'var(--t1)'; }
     if (tabVids) { tabVids.style.borderBottomColor = 'transparent'; tabVids.style.color = 'var(--t3)'; }
-    // Remplir grille
+    // Vraies publications de l'utilisateur
     const grid = document.getElementById('p-grid');
-    const grads = ['#6c63ff,#a78bfa','#38bdf8,#6c63ff','#a78bfa,#f472b6','#f472b6,#fb923c','#22d3a0,#38bdf8','#fb923c,#fbbf24'];
-    const emojis = ['📸','🎬','✨','🔥','💜','🌟'];
-    grid.innerHTML = grads.map((g, i) => `<div class="pgrid-item" style="background:linear-gradient(135deg,${g})"><div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:28px">${emojis[i]}</div></div>`).join('');
+    const myPosts = JSON.parse(localStorage.getItem('nova_videos') || '[]')
+      .filter(v => v.uid === me.uid).reverse();
+    if (!myPosts.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center">
+        <div style="font-size:40px;opacity:.2;margin-bottom:10px">📷</div>
+        <div style="font-size:14px;color:var(--t3)">Aucune publication</div>
+      </div>`;
+    } else {
+      grid.innerHTML = myPosts.map(v => {
+        const isImg = v.dataUrl?.startsWith('data:image');
+        const thumb = v.dataUrl
+          ? (isImg
+            ? `<img src="${v.dataUrl}" style="width:100%;height:100%;object-fit:cover">`
+            : `<video src="${v.dataUrl}" style="width:100%;height:100%;object-fit:cover" muted preload="metadata"></video>`)
+          : `<div style="height:100%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:28px">🎬</div>`;
+        return `<div class="pgrid-item" style="position:relative">
+          ${thumb}
+          ${!isImg ? '<div style="position:absolute;top:4px;right:4px;font-size:12px">▶️</div>' : ''}
+        </div>`;
+      }).join('');
+    }
   } else {
     gridTab.style.display = 'none';
     vidsTab.style.display = '';
@@ -5134,9 +5163,20 @@ function stopAllVideos() {
   if (vObs) { vObs.disconnect(); vObs = null; }
   document.querySelectorAll('#vfeed video').forEach(v => {
     v.pause();
-    if (v._musicAudio) stopVideoMusic(v);
-    if (v._progTimer) clearInterval(v._progTimer);
+    v.currentTime = 0;
+    if (v._musicAudio) {
+      v._musicAudio.pause();
+      v._musicAudio.currentTime = 0;
+      v._musicAudio = null;
+    }
+    if (v._progTimer) { clearInterval(v._progTimer); v._progTimer = null; }
   });
+  // Arrêter aussi les audios globaux de musique
+  if (window._currentMusicAudio) {
+    window._currentMusicAudio.pause();
+    window._currentMusicAudio.currentTime = 0;
+    window._currentMusicAudio = null;
+  }
 }
 
 function buildVItem(v, i) {
@@ -5249,21 +5289,37 @@ function setupVProgress(vid, idx) {
 }
 
 function vTap(e, idx) {
+  // Ne pas déclencher si clic sur un bouton action
+  if (e.target.closest('.vact') || e.target.closest('.vfollow')) return;
+
   const item = document.querySelector(`.vitem[data-idx="${idx}"]`);
   const vid = item?.querySelector('video');
   const ic = document.getElementById('vpc-'+idx);
   if (!vid) return;
+
   if (vid.paused) {
+    // → PLAY
     vid.play().catch(()=>{});
-    if (ic) { ic.classList.add('show'); setTimeout(()=>ic.classList.remove('show'),600); }
-    // Relancer la musique si elle existe
+    if (ic) {
+      ic.textContent = '▶️';
+      ic.classList.add('show');
+      setTimeout(() => ic.classList.remove('show'), 700);
+    }
+    // Relancer la musique
     const v = vItems[idx];
     if (v?.musicDataUrl) playVideoMusic(v, vid);
+    else if (vid._musicAudio) vid._musicAudio.play().catch(()=>{});
   } else {
+    // → PAUSE
     vid.pause();
-    if (ic) ic.classList.add('show');
-    // Mettre en pause la musique aussi
-    if (vid._musicAudio) { vid._musicAudio.pause(); }
+    if (ic) {
+      ic.textContent = '⏸️';
+      ic.classList.add('show');
+      // L'icône reste visible tant que c'est en pause
+    }
+    // Mettre en pause la musique
+    if (vid._musicAudio) vid._musicAudio.pause();
+    else if (window._currentMusicAudio) window._currentMusicAudio.pause();
   }
 }
 
@@ -5362,17 +5418,21 @@ function openUpload() {
       </div>
       <!-- Options son -->
       <div style="display:flex;gap:0">
-        <div onclick="document.getElementById('up-music-file').click()" style="flex:1;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;border-right:1px solid rgba(255,255,255,.08);transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">
-          <div style="font-size:22px">🎵</div>
-          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.7);font-family:var(--ff)">Ma musique</div>
+        <div onclick="document.getElementById('up-music-file').click()" style="flex:1;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;border-right:1px solid rgba(255,255,255,.08);transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">
+          <div style="font-size:20px">🎵</div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.7);font-family:var(--ff);text-align:center">Ma musique</div>
         </div>
-        <div onclick="startVoiceRecord()" style="flex:1;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;border-right:1px solid rgba(255,255,255,.08);transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">
-          <div style="font-size:22px">🎤</div>
-          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.7);font-family:var(--ff)">Enregistrer</div>
+        <div onclick="openAppSounds()" style="flex:1;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;border-right:1px solid rgba(255,255,255,.08);transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">
+          <div style="font-size:20px">🔊</div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.7);font-family:var(--ff);text-align:center">Sons appli</div>
         </div>
-        <div onclick="removeMusic()" style="flex:1;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">
-          <div style="font-size:22px">🔇</div>
-          <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.7);font-family:var(--ff)">Sans son</div>
+        <div onclick="startVoiceRecord()" style="flex:1;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;border-right:1px solid rgba(255,255,255,.08);transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">
+          <div style="font-size:20px">🎤</div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.7);font-family:var(--ff);text-align:center">Enregistrer</div>
+        </div>
+        <div onclick="removeMusic()" style="flex:1;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">
+          <div style="font-size:20px">🔇</div>
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.7);font-family:var(--ff);text-align:center">Sans son</div>
         </div>
       </div>
       <!-- Enregistrement vocal -->
@@ -5572,6 +5632,131 @@ function fmtNum(n) {
   return String(n);
 }
 window.openUpload=openUpload; window.onUploadPick=onUploadPick; window.submitUpload=submitUpload;
+
+// ── Sons de l'appli pour les vidéos ──
+const APP_SOUNDS = [
+  { name: '✨ Shimmer', freq: [880,1100,1320], type: 'sine' },
+  { name: '🚀 Launch', freq: [220,440,880,1760], type: 'sawtooth' },
+  { name: '💫 Dreamy', freq: [528,660,792], type: 'sine' },
+  { name: '⚡ Electric', freq: [100,200,400,800], type: 'square' },
+  { name: '🎯 Pop', freq: [600,800,1000], type: 'triangle' },
+  { name: '🌊 Wave', freq: [260,330,390,520], type: 'sine' },
+  { name: '🔥 Drop', freq: [440,220,110], type: 'sawtooth' },
+  { name: '🎵 Chime', freq: [1046,1318,1568], type: 'sine' },
+];
+
+function openAppSounds() {
+  const existing = document.getElementById('app-sounds-overlay');
+  if (existing) { existing.remove(); return; }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'app-sounds-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99991;display:flex;align-items:flex-end;backdrop-filter:blur(10px)';
+
+  overlay.innerHTML = `
+    <div style="width:100%;background:var(--bg2);border-radius:24px 24px 0 0;padding:20px 20px calc(24px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:800;font-family:var(--ff)">🔊 Sons de l'appli</div>
+        <div onclick="document.getElementById('app-sounds-overlay').remove()" style="width:30px;height:30px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px">✕</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${APP_SOUNDS.map((s, i) => `
+          <div onclick="previewAppSound(${i})" style="padding:14px;border-radius:14px;background:var(--bg3);border:1.5px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px;transition:border-color .15s" id="asound-${i}">
+            <div style="font-size:24px">${s.name.split(' ')[0]}</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--t1)">${s.name.split(' ').slice(1).join(' ')}</div>
+              <div style="font-size:11px;color:var(--t3);font-family:var(--ff-mono)">appuie pour écouter</div>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div id="selected-sound-info" style="margin-top:12px;padding:10px 14px;border-radius:12px;background:rgba(90,200,255,.08);border:1px solid rgba(90,200,255,.2);display:none">
+        <div style="font-size:13px;color:var(--e1);font-weight:600">✓ Son sélectionné — sera ajouté à ta vidéo</div>
+      </div>
+    </div>`;
+
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  document.body.appendChild(overlay);
+}
+window.openAppSounds = openAppSounds;
+
+function previewAppSound(idx) {
+  const s = APP_SOUNDS[idx];
+  // Générer le son avec Web Audio
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const dur = 0.8;
+  s.freq.forEach((f, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = s.type;
+    osc.frequency.setValueAtTime(f, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(f * 1.5, ctx.currentTime + dur);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.start(ctx.currentTime + i * 0.05);
+    osc.stop(ctx.currentTime + dur);
+  });
+
+  // Encoder le son en base64 pour l'attacher à la vidéo
+  const offCtx = new OfflineAudioContext(1, ctx.sampleRate * 2, ctx.sampleRate);
+  s.freq.forEach((f, i) => {
+    const osc = offCtx.createOscillator();
+    const gain = offCtx.createGain();
+    osc.connect(gain); gain.connect(offCtx.destination);
+    osc.type = s.type;
+    osc.frequency.setValueAtTime(f, 0);
+    osc.frequency.exponentialRampToValueAtTime(f * 1.5, 1.5);
+    gain.gain.setValueAtTime(0.3, 0);
+    gain.gain.exponentialRampToValueAtTime(0.001, 1.5);
+    osc.start(i * 0.05);
+    osc.stop(1.5);
+  });
+  offCtx.startRendering().then(buf => {
+    // Convertir en WAV dataUrl
+    const wav = bufferToWav(buf);
+    const blob = new Blob([wav], { type: 'audio/wav' });
+    const reader = new FileReader();
+    reader.onload = ev => {
+      window._uploadMusicFile = ev.target.result;
+      window._uploadMusicName = s.name;
+      const nameEl = document.getElementById('up-music-name');
+      if (nameEl) nameEl.textContent = s.name;
+      const info = document.getElementById('selected-sound-info');
+      if (info) info.style.display = 'block';
+      // Highlight
+      document.querySelectorAll('[id^="asound-"]').forEach(el => el.style.borderColor = '');
+      const el = document.getElementById('asound-' + idx);
+      if (el) el.style.borderColor = 'var(--e1)';
+    };
+    reader.readAsDataURL(blob);
+  }).catch(() => {});
+}
+window.previewAppSound = previewAppSound;
+
+function bufferToWav(buffer) {
+  const numCh = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const numSamples = buffer.length;
+  const ab = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(ab);
+  const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+  writeStr(0, 'RIFF'); view.setUint32(4, 36 + numSamples * 2, true);
+  writeStr(8, 'WAVE'); writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+  view.setUint16(22, numCh, true); view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true); writeStr(36, 'data');
+  view.setUint32(40, numSamples * 2, true);
+  const ch = buffer.getChannelData(0);
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    const s = Math.max(-1, Math.min(1, ch[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    offset += 2;
+  }
+  return ab;
+}
+window.bufferToWav = bufferToWav;
 window.vTap=vTap; window.vLike=vLike; window.vFollow=vFollow; window.vComment=vComment; window.vShare=vShare; window.vSave=vSave;
 
 function confirmReset() {
