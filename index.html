@@ -1955,10 +1955,14 @@ function goHome() {
   const home = document.getElementById('s-home');
   if (home) home.classList.remove('hidden');
   screenHistory = ['s-home'];
-
-  // Remplir le header avec le nom et les amis
   updateHomeHeader();
-
+  // Marquer comme en ligne
+  setOnlineStatus(true);
+  // Envoyer un heartbeat toutes les 10s
+  if (window._onlineInterval) clearInterval(window._onlineInterval);
+  window._onlineInterval = setInterval(() => setOnlineStatus(true), 10000);
+  // Hors ligne si page fermée
+  window.onbeforeunload = () => setOnlineStatus(false);
   setTimeout(() => {
     loadConversations();
     startRealtimeSync();
@@ -2877,6 +2881,7 @@ function openConv(uid, name, username, cid) {
 
   subscribeMessages(convId);
   subscribeTyping(convId);
+  subscribePresence(otherUser.uid); // ← présence en ligne
 }
 
 // ── Surnoms ──
@@ -3126,30 +3131,26 @@ let _typingPollInterval = null;
 async function onTyping() {
   if (!convId || !me) return;
   const ta = document.getElementById('msg-ta');
-  const hasText = ta && ta.value.length > 0;
+  const hasText = ta ? ta.value.length > 0 : false;
 
+  // ── Local ──
   if (!fb?.db) {
-    // Mode local
     const tk = 'nova_typing_' + convId;
     const td = JSON.parse(localStorage.getItem(tk) || '{}');
-    if (hasText) {
-      td[me.uid] = Date.now();
-    } else {
-      delete td[me.uid]; // plus de texte = arrêter
-    }
+    if (hasText) td[me.uid] = Date.now();
+    else delete td[me.uid];
     localStorage.setItem(tk, JSON.stringify(td));
     clearTimeout(typingTimeout);
-    if (hasText) {
-      typingTimeout = setTimeout(() => {
-        const td2 = JSON.parse(localStorage.getItem(tk) || '{}');
-        delete td2[me.uid];
-        localStorage.setItem(tk, JSON.stringify(td2));
-      }, 3000);
-    }
+    if (hasText) typingTimeout = setTimeout(() => {
+      const td2 = JSON.parse(localStorage.getItem(tk) || '{}');
+      delete td2[me.uid];
+      localStorage.setItem(tk, JSON.stringify(td2));
+    }, 3000);
     return;
   }
 
-  // Firebase
+  // ── Firebase ──
+  clearTimeout(typingTimeout);
   try {
     const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
     await setDoc(doc(fb.db, 'typing', convId), {
@@ -3157,71 +3158,121 @@ async function onTyping() {
       [`${me.uid}_ts`]: Date.now()
     }, { merge: true });
   } catch(_) {}
-  clearTimeout(typingTimeout);
+
   if (hasText) {
     typingTimeout = setTimeout(async () => {
       if (!fb?.db || !convId || !me) return;
       try {
-        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-        await updateDoc(doc(fb.db, 'typing', convId), { [me.uid]: false });
+        const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+        await setDoc(doc(fb.db, 'typing', convId), { [me.uid]: false, [`${me.uid}_ts`]: Date.now() }, { merge: true });
       } catch(_) {}
     }, 3000);
   }
 }
 
-// Poll localStorage toutes les 500ms pour voir si l'autre écrit
+// ── Poll local typing ──
 function startLocalTypingPoll(cid) {
   if (_typingPollInterval) clearInterval(_typingPollInterval);
   _typingPollInterval = setInterval(() => {
     if (!otherUser) return;
     const tk = 'nova_typing_' + cid;
     const td = JSON.parse(localStorage.getItem(tk) || '{}');
-    const theirTs = td[otherUser.uid];
-    const isTyping = theirTs && (Date.now() - theirTs) < 3000;
-    showTyping(!!isTyping);
-  }, 500);
+    const ts = td[otherUser.uid];
+    showTyping(!!ts && (Date.now() - ts) < 3500);
+  }, 400);
 }
 
+// ── Subscribe typing Firebase ──
 let unsubTyping = null;
 async function subscribeTyping(cid) {
   if (unsubTyping) { try { unsubTyping(); } catch(_) {} unsubTyping = null; }
   if (_typingPollInterval) { clearInterval(_typingPollInterval); _typingPollInterval = null; }
 
-  if (!fb?.db) {
-    startLocalTypingPoll(cid);
-    return;
-  }
+  if (!fb?.db) { startLocalTypingPoll(cid); return; }
+
   try {
     const { doc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
     unsubTyping = onSnapshot(doc(fb.db, 'typing', cid), snap => {
-      if (!snap.exists()) { showTyping(false); return; }
+      if (!snap.exists() || !otherUser) { showTyping(false); return; }
       const data = snap.data();
-      const uid = otherUser?.uid;
-      if (!uid) { showTyping(false); return; }
+      const uid = otherUser.uid;
       const isTyping = data[uid] === true;
       const ts = data[`${uid}_ts`];
-      // Considérer comme "en train d'écrire" si flag true ET timestamp récent (< 5s)
-      const fresh = !ts || (Date.now() - ts) < 5000;
+      const fresh = ts ? (Date.now() - ts) < 5000 : true;
       showTyping(isTyping && fresh);
     });
-  } catch(e) {
-    // Fallback sur poll local si Firebase typing échoue
-    startLocalTypingPoll(cid);
-  }
+  } catch(_) { startLocalTypingPoll(cid); }
 }
 
+// ── Afficher / cacher "est en train d'écrire" ──
 function showTyping(on) {
   const el = document.getElementById('ch-typing');
   const st = document.getElementById('ch-status');
   if (!el || !st) return;
-  if (on) {
-    el.style.display = 'flex';
-    st.style.display = 'none';
-  } else {
-    el.style.display = 'none';
-    st.style.display = 'block';
+  el.style.display = on ? 'flex' : 'none';
+  st.style.display = on ? 'none' : 'block';
+}
+
+// ── Présence en ligne ──
+async function setOnlineStatus(online) {
+  if (!me) return;
+  const status = { online, lastSeen: Date.now(), uid: me.uid };
+  if (!fb?.db) {
+    localStorage.setItem('nova_online_' + me.uid, JSON.stringify(status));
+    return;
+  }
+  try {
+    const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    await setDoc(doc(fb.db, 'presence', me.uid), status, { merge: true });
+  } catch(_) {}
+}
+
+async function subscribePresence(uid) {
+  // Mode local — poll
+  if (!fb?.db) {
+    if (window._presencePoll) clearInterval(window._presencePoll);
+    window._presencePoll = setInterval(() => {
+      const raw = localStorage.getItem('nova_online_' + uid);
+      if (!raw) { updateOnlineUI(false); return; }
+      const d = JSON.parse(raw);
+      const isOnline = d.online && (Date.now() - d.lastSeen) < 15000;
+      updateOnlineUI(isOnline);
+    }, 2000);
+    return;
+  }
+  // Firebase
+  try {
+    const { doc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    if (window._unsubPresence) window._unsubPresence();
+    window._unsubPresence = onSnapshot(doc(fb.db, 'presence', uid), snap => {
+      if (!snap.exists()) { updateOnlineUI(false); return; }
+      const d = snap.data();
+      const isOnline = d.online === true && (Date.now() - d.lastSeen) < 15000;
+      updateOnlineUI(isOnline);
+    });
+  } catch(_) {}
+}
+
+function updateOnlineUI(isOnline) {
+  const dot = document.getElementById('ch-online');
+  const st = document.getElementById('ch-status');
+  if (dot) dot.style.display = isOnline ? 'block' : 'none';
+  // Ne mettre "En ligne" que si pas en train d'écrire
+  const typing = document.getElementById('ch-typing');
+  const typingVisible = typing && typing.style.display !== 'none';
+  if (st && !typingVisible) {
+    if (isOnline) {
+      st.textContent = '🟢 En ligne';
+      st.style.color = 'var(--green)';
+    } else {
+      // Garder le @username
+      const un = otherUser?.username;
+      st.textContent = un ? '@' + un : '';
+      st.style.color = '';
+    }
   }
 }
+window.updateOnlineUI = updateOnlineUI;
 
 function clearTypingIndicator() {
   showTyping(false);
@@ -4339,11 +4390,26 @@ async function startCall(type) {
 
 function startCallerPoll() {
   if (_callPollInterval) clearInterval(_callPollInterval);
+  const _callStartTime = Date.now();
+  const TIMEOUT_MS = 30000; // 30 secondes pour répondre
+
   _callPollInterval = setInterval(async () => {
     if (!_callCid) { clearInterval(_callPollInterval); return; }
+
+    // Timeout — pas de réponse après 30s
+    if (Date.now() - _callStartTime > TIMEOUT_MS) {
+      clearInterval(_callPollInterval);
+      toast('📵 Pas de réponse', 'inf');
+      endCall();
+      return;
+    }
+
     const status = await readSigAsync(_callCid, 'status');
-    if (status?.state === 'declined') { clearInterval(_callPollInterval); toast('📵 Appel refusé', 'inf'); endCall(); return; }
-    if (status?.state === 'ended' && status?.from !== me?.uid) { clearInterval(_callPollInterval); endCall(); return; }
+    // Ignorer les statuts trop vieux (> 5s) pour éviter les faux décrochages
+    const statusAge = status?.ts ? Date.now() - status.ts : 0;
+    if (statusAge > 60000) { /* trop vieux, ignorer */ }
+    else if (status?.state === 'declined') { clearInterval(_callPollInterval); toast('📵 Appel refusé', 'inf'); endCall(); return; }
+    else if (status?.state === 'ended' && status?.from !== me?.uid) { clearInterval(_callPollInterval); endCall(); return; }
     const answer = await readSigAsync(_callCid, 'answer');
     if (answer && _pc && _pc.signalingState === 'have-local-offer') {
       clearInterval(_callPollInterval);
@@ -4693,35 +4759,29 @@ function toggleWinFS(winId) {
   playSound('click');
 
   if (win._isFullscreen) {
-    // Réduire — restaurer le style original
+    // Réduire — remettre dans call-screen avec style original
     win._isFullscreen = false;
-    const orig = _winOrigStyle[winId];
-    if (orig) {
-      win.style.cssText = orig;
-    }
+    const screen = document.getElementById('call-screen');
+    if (screen && win.parentElement !== screen) screen.appendChild(win);
+    if (_winOrigStyle[winId]) win.style.cssText = _winOrigStyle[winId];
     const exp = win.querySelector('.share-window-expand');
     if (exp) exp.textContent = '⤢';
   } else {
-    // Agrandir — sauvegarder et passer en plein écran
+    // Sauvegarder
     _winOrigStyle[winId] = win.style.cssText;
     win._isFullscreen = true;
-    win.style.cssText = `
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      width: 100vw; height: 100vh;
-      border-radius: 0;
-      border: none;
-      z-index: 99999;
-      background: #000;
-      cursor: pointer;
-    `;
+    // Déplacer dans body pour éviter les contraintes CSS de call-screen
+    document.body.appendChild(win);
+    // Appliquer plein écran
+    win.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border-radius:0;border:none;z-index:99999;background:#000;cursor:pointer;display:block;';
     const exp = win.querySelector('.share-window-expand');
     if (exp) exp.textContent = '✕';
     // Fermer les autres
     ['win-local','win-remote','win-screen-local','win-screen-remote'].forEach(id => {
-      if (id === winId) return;
-      const w = document.getElementById(id);
-      if (w && w._isFullscreen) toggleWinFS(id);
+      if (id !== winId) {
+        const w = document.getElementById(id);
+        if (w?._isFullscreen) toggleWinFS(id);
+      }
     });
   }
 }
