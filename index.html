@@ -1262,6 +1262,7 @@ const firebaseConfig = {
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
     </button>
     <button class="voice-rec-btn-input" id="voice-btn" onmousedown="startVoiceMsgRec()" onmouseup="stopVoiceMsgRec()" ontouchstart="startVoiceMsgRec()" ontouchend="stopVoiceMsgRec()" title="Maintiens pour enregistrer">🎤</button>
+    <button class="voice-rec-btn-input" id="dict-btn" onclick="toggleDictation()" title="Dicter un message" style="font-size:16px">🎙️</button>
   </div>
   <input type="file" id="file-in" accept="image/*,video/*" style="display:none" onchange="onFilePick(event)">
 </div>
@@ -3021,11 +3022,14 @@ function renderMessages(msgs) {
       const dur = m.duration || 0;
       const durStr = dur >= 60 ? `${Math.floor(dur/60)}:${String(dur%60).padStart(2,'0')}` : `0:${String(dur).padStart(2,'0')}`;
       const status = isMe ? (m.status==='read'?'<span class="tick r">✓✓</span>':'<span class="tick">✓</span>') : '';
-      const safeUrl = m.audioUrl.replace(/'/g, "\\'");
+      // Stocker l'URL dans un registry pour éviter les problèmes d'échappement
+      const voiceKey = 'vm_' + Date.now() + '_' + i;
+      window._voiceUrls = window._voiceUrls || {};
+      window._voiceUrls[voiceKey] = m.audioUrl;
       html += `<div class="mrow ${isMe?'me':'them'}">
         ${!isMe ? `<div class="mav ${showAv?'':'ghost'}">${oInit}</div>` : ''}
         <div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'}">
-          <div class="voice-msg" style="cursor:pointer" onclick="playVoiceMsg(this.querySelector('.voice-play'), '${safeUrl}')">
+          <div class="voice-msg" style="cursor:pointer" data-vkey="${voiceKey}" onclick="playVoiceMsgByKey(this)">
             <div class="voice-play" style="pointer-events:none">▶️</div>
             <div class="voice-waves" style="pointer-events:none">${bars}</div>
             <div class="voice-dur" style="pointer-events:none">${durStr}</div>
@@ -3426,7 +3430,18 @@ window.startVoiceMsgRec = startVoiceMsgRec;
 window.stopVoiceMsgRec = stopVoiceMsgRec;
 
 // Lire un message vocal
+// Lecture via registry (évite problèmes d'échappement URL)
+function playVoiceMsgByKey(el) {
+  const key = el.dataset.vkey;
+  const url = window._voiceUrls?.[key];
+  if (!url) { toast('Message audio introuvable', 'err'); return; }
+  const btn = el.querySelector('.voice-play');
+  playVoiceMsg(btn, url);
+}
+window.playVoiceMsgByKey = playVoiceMsgByKey;
+
 function playVoiceMsg(btn, audioUrl) {
+  if (!btn || !audioUrl) return;
   // Stopper tout audio en cours
   if (window._currentVoiceAudio) {
     window._currentVoiceAudio.pause();
@@ -3435,7 +3450,7 @@ function playVoiceMsg(btn, audioUrl) {
     const wasSame = window._currentVoiceBtn === btn;
     window._currentVoiceAudio = null;
     window._currentVoiceBtn = null;
-    if (wasSame) return; // toggle : clic sur le même = pause
+    if (wasSame) return;
   }
 
   try {
@@ -3445,47 +3460,109 @@ function playVoiceMsg(btn, audioUrl) {
     window._currentVoiceBtn = btn;
     btn.textContent = '⏸️';
 
-    // Animer les barres pendant la lecture
     const voiceMsg = btn.closest('.voice-msg');
     const bars = voiceMsg?.querySelectorAll('.voice-bar');
     let animFrame;
     const animBars = () => {
       if (!bars) return;
-      bars.forEach(b => {
-        const h = 4 + Math.random() * 20;
-        b.style.height = h + 'px';
-        b.style.opacity = '1';
-      });
+      bars.forEach(b => { b.style.height = (4 + Math.random() * 20) + 'px'; b.style.opacity = '1'; });
       animFrame = requestAnimationFrame(animBars);
     };
     animBars();
 
-    audio.play().catch(e => {
+    audio.play().catch(() => {
       toast('Impossible de lire le message vocal', 'err');
       btn.textContent = '▶️';
+      cancelAnimationFrame(animFrame);
       window._currentVoiceAudio = null;
     });
 
     audio.onended = () => {
       btn.textContent = '▶️';
       cancelAnimationFrame(animFrame);
-      // Reset barres
       if (bars) bars.forEach((b, j) => { b.style.height = (4 + ((j*13)%20)) + 'px'; b.style.opacity = '0.6'; });
       window._currentVoiceAudio = null;
       window._currentVoiceBtn = null;
     };
-
     audio.onerror = () => {
       btn.textContent = '▶️';
       cancelAnimationFrame(animFrame);
       window._currentVoiceAudio = null;
-      toast('Erreur lecture audio', 'err');
     };
-  } catch(e) {
-    toast('Erreur: ' + e.message, 'err');
-  }
+  } catch(e) { toast('Erreur audio: ' + e.message, 'err'); }
 }
 window.playVoiceMsg = playVoiceMsg;
+
+// ── Dictée vocale — écriture par la voix ──
+let _dictRecognition = null;
+let _isDictating = false;
+
+function toggleDictation() {
+  const btn = document.getElementById('dict-btn');
+  const ta = document.getElementById('msg-ta');
+
+  if (_isDictating) {
+    // Arrêter la dictée
+    _isDictating = false;
+    if (_dictRecognition) { _dictRecognition.stop(); _dictRecognition = null; }
+    if (btn) { btn.textContent = '🎙️'; btn.classList.remove('recording'); btn.title = 'Dicter un message'; }
+    return;
+  }
+
+  // Vérifier support
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { toast('Dictée non supportée sur ce navigateur', 'err'); return; }
+
+  _dictRecognition = new SR();
+  _dictRecognition.continuous = true;
+  _dictRecognition.interimResults = true;
+  _dictRecognition.lang = 'fr-FR';
+
+  let finalText = ta?.value || '';
+
+  _dictRecognition.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) { finalText += t + ' '; }
+      else { interim = t; }
+    }
+    if (ta) {
+      ta.value = finalText + interim;
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 110) + 'px';
+      document.getElementById('send-btn').disabled = !ta.value.trim();
+      // Compteur
+      const cc = document.getElementById('char-count');
+      if (cc) cc.textContent = ta.value.length || '';
+    }
+  };
+
+  _dictRecognition.onerror = e => {
+    if (e.error !== 'aborted') toast('Erreur dictée: ' + e.error, 'err');
+    _isDictating = false;
+    if (btn) { btn.textContent = '🎙️'; btn.classList.remove('recording'); }
+    _dictRecognition = null;
+  };
+
+  _dictRecognition.onend = () => {
+    if (_isDictating) {
+      // Relancer si toujours en mode dictée
+      try { _dictRecognition?.start(); } catch(_) {}
+    }
+  };
+
+  try {
+    _dictRecognition.start();
+    _isDictating = true;
+    if (btn) { btn.textContent = '🔴'; btn.classList.add('recording'); btn.title = 'Arrêter la dictée'; }
+    toast('🎙️ Dictée activée — parle !', 'ok');
+  } catch(e) {
+    toast('Impossible de démarrer la dictée', 'err');
+    _dictRecognition = null;
+  }
+}
+window.toggleDictation = toggleDictation;
 
 const BUBBLE_COLORS = [
   { name:'Violet 💜', from:'#6c63ff', to:'#a78bfa' },{ name:'Rose 🌸', from:'#ec4899', to:'#f472b6' },
