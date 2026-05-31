@@ -16,10 +16,10 @@
   --gold2: #e8a800;
   --red: #e8344a;
   --blue: #3b82f6;
+  --green: #4ade80;
   --text: #f0f2f5;
   --muted: #6b7a9a;
   --border: rgba(255,255,255,0.07);
-  --card-hover: rgba(245,200,66,0.06);
   --radius: 12px;
   --radius-lg: 18px;
 }
@@ -32,14 +32,10 @@ body {
   overflow-x: hidden;
   min-height: 100vh;
 }
-
-/* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg2); }
 ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gold2); }
-
-/* ── GRAIN OVERLAY ── */
 body::before {
   content: '';
   position: fixed; inset: 0; z-index: 0;
@@ -49,9 +45,7 @@ body::before {
   opacity: 0.5;
 }
 
-/* ══════════════════════════════════
-   NAVBAR
-══════════════════════════════════ */
+/* NAVBAR */
 nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   height: 64px;
@@ -71,15 +65,11 @@ nav {
   flex-shrink: 0;
 }
 .nav-logo span { color: var(--text); }
-.nav-links {
-  display: flex; gap: 0; flex: 1;
-  overflow-x: auto; scrollbar-width: none;
-}
+.nav-links { display: flex; gap: 0; flex: 1; overflow-x: auto; scrollbar-width: none; }
 .nav-links::-webkit-scrollbar { display: none; }
 .nav-link {
   padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 13px; font-weight: 500;
   color: var(--muted);
   cursor: pointer;
   border-radius: 8px;
@@ -90,48 +80,30 @@ nav {
 .nav-link:hover, .nav-link.active { color: var(--text); background: var(--bg3); }
 .nav-link.active { color: var(--gold); }
 .nav-right { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
-.search-wrap {
-  position: relative;
-  display: flex; align-items: center;
-}
+.search-wrap { position: relative; display: flex; align-items: center; }
 .search-wrap input {
   background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: 30px;
   padding: 8px 16px 8px 38px;
-  font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-family: 'DM Sans', sans-serif;
   color: var(--text);
-  width: 220px;
-  outline: none;
-  transition: all .3s;
+  width: 220px; outline: none; transition: all .3s;
 }
-.search-wrap input:focus {
-  width: 280px;
-  border-color: rgba(245,200,66,0.4);
-  background: var(--bg4);
-}
+.search-wrap input:focus { width: 280px; border-color: rgba(245,200,66,0.4); background: var(--bg4); }
 .search-wrap input::placeholder { color: var(--muted); }
-.search-wrap svg {
-  position: absolute; left: 12px;
-  pointer-events: none; opacity: .5;
-}
+.search-wrap svg { position: absolute; left: 12px; pointer-events: none; opacity: .5; }
 .nav-btn {
   padding: 8px 20px;
-  background: var(--gold);
-  color: #000;
+  background: var(--gold); color: #000;
   border: none; border-radius: 30px;
   font-size: 13px; font-weight: 700;
-  cursor: pointer;
-  transition: all .2s;
-  font-family: 'DM Sans', sans-serif;
-  white-space: nowrap;
+  cursor: pointer; transition: all .2s;
+  font-family: 'DM Sans', sans-serif; white-space: nowrap;
 }
 .nav-btn:hover { background: var(--gold2); transform: scale(1.04); }
 
-/* ══════════════════════════════════
-   HERO
-══════════════════════════════════ */
+/* HERO */
 .hero {
   position: relative;
   height: 92vh; min-height: 580px;
@@ -142,45 +114,21 @@ nav {
 .hero-bg {
   position: absolute; inset: 0;
   background-size: cover; background-position: center;
-  transition: all 1s ease;
-  transform: scale(1.04);
   animation: heroZoom 12s ease-in-out infinite alternate;
 }
-@keyframes heroZoom {
-  from { transform: scale(1.04); }
-  to   { transform: scale(1.10); }
-}
+@keyframes heroZoom { from { transform: scale(1.04); } to { transform: scale(1.10); } }
 .hero-bg::after {
   content: '';
   position: absolute; inset: 0;
-  background: linear-gradient(
-    to right,
-    rgba(6,8,16,0.95) 0%,
-    rgba(6,8,16,0.7) 40%,
-    transparent 70%
-  ),
-  linear-gradient(
-    to top,
-    rgba(6,8,16,0.98) 0%,
-    rgba(6,8,16,0.4) 40%,
-    transparent 70%
-  );
+  background: linear-gradient(to right, rgba(6,8,16,0.95) 0%, rgba(6,8,16,0.7) 40%, transparent 70%),
+              linear-gradient(to top, rgba(6,8,16,0.98) 0%, rgba(6,8,16,0.4) 40%, transparent 70%);
 }
-.hero-content {
-  position: relative; z-index: 2;
-  max-width: 640px;
-  animation: fadeUp .8s ease both;
-}
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+.hero-content { position: relative; z-index: 2; max-width: 640px; animation: fadeUp .8s ease both; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 .hero-badge {
   display: inline-flex; align-items: center; gap: 6px;
-  background: var(--red);
-  color: #fff;
-  padding: 4px 12px;
-  border-radius: 4px;
+  background: var(--red); color: #fff;
+  padding: 4px 12px; border-radius: 4px;
   font-size: 11px; font-weight: 700;
   letter-spacing: 1.5px; text-transform: uppercase;
   margin-bottom: 1rem;
@@ -188,341 +136,178 @@ nav {
 .hero-title {
   font-family: 'Bebas Neue', sans-serif;
   font-size: clamp(3rem, 7vw, 5.5rem);
-  line-height: .95;
-  letter-spacing: 2px;
+  line-height: .95; letter-spacing: 2px;
   margin-bottom: 1rem;
   text-shadow: 0 4px 30px rgba(0,0,0,.7);
 }
-.hero-meta {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-.hero-meta span {
-  font-size: 13px; font-weight: 500;
-  color: var(--muted);
-}
-.hero-meta .rating {
-  color: var(--gold);
-  font-weight: 700;
-  font-family: 'Space Mono', monospace;
-}
+.hero-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; flex-wrap: wrap; }
+.hero-meta span { font-size: 13px; font-weight: 500; color: var(--muted); }
+.hero-meta .rating { color: var(--gold); font-weight: 700; font-family: 'Space Mono', monospace; }
 .hero-meta .dot { width: 4px; height: 4px; background: var(--muted); border-radius: 50%; }
 .hero-desc {
   font-size: 15px; line-height: 1.7;
   color: rgba(240,242,245,.75);
-  margin-bottom: 1.8rem;
-  max-width: 500px;
+  margin-bottom: 1.8rem; max-width: 500px;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .btn-play {
   display: flex; align-items: center; gap: 10px;
-  padding: 14px 28px;
-  background: var(--gold);
-  color: #000;
+  padding: 14px 28px; background: var(--gold); color: #000;
   border: none; border-radius: 8px;
   font-size: 15px; font-weight: 700;
-  cursor: pointer;
-  transition: all .2s;
-  font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif;
 }
 .btn-play:hover { background: var(--gold2); transform: scale(1.04); box-shadow: 0 8px 30px rgba(245,200,66,0.35); }
-.btn-play svg { flex-shrink: 0; }
 .btn-info {
   display: flex; align-items: center; gap: 8px;
   padding: 14px 24px;
-  background: rgba(255,255,255,0.12);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: rgba(255,255,255,0.12); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
   font-size: 15px; font-weight: 500;
-  cursor: pointer;
-  transition: all .2s;
-  font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif;
   backdrop-filter: blur(8px);
 }
 .btn-info:hover { background: rgba(255,255,255,0.2); }
-
-/* Hero dots */
-.hero-dots {
-  position: absolute; bottom: 2rem; right: 3rem;
-  display: flex; gap: 8px; z-index: 2;
-}
+.hero-dots { position: absolute; bottom: 2rem; right: 3rem; display: flex; gap: 8px; z-index: 2; }
 .hero-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
+  width: 8px; height: 8px; border-radius: 50%;
   background: rgba(255,255,255,0.3);
-  cursor: pointer; transition: all .3s;
-  border: none;
+  cursor: pointer; transition: all .3s; border: none;
 }
 .hero-dot.active { width: 28px; border-radius: 4px; background: var(--gold); }
 
-/* ══════════════════════════════════
-   MAIN CONTENT
-══════════════════════════════════ */
+/* MAIN */
 main { padding: 3rem 2rem; max-width: 1600px; margin: 0 auto; }
-
-/* Section header */
-.sec-header {
-  display: flex; align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-}
-.sec-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 1.7rem;
-  letter-spacing: 1.5px;
-  color: var(--text);
-}
+.sec-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.5rem; }
+.sec-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.7rem; letter-spacing: 1.5px; color: var(--text); }
 .sec-title span { color: var(--gold); }
 .see-all {
   font-size: 13px; color: var(--muted);
   cursor: pointer; border: none; background: none;
-  font-family: 'DM Sans', sans-serif;
-  transition: color .2s;
+  font-family: 'DM Sans', sans-serif; transition: color .2s;
   display: flex; align-items: center; gap: 4px;
 }
 .see-all:hover { color: var(--gold); }
-
-/* ── CATEGORY PILLS ── */
-.cat-pills {
-  display: flex; gap: 8px;
-  margin-bottom: 2rem;
-  overflow-x: auto; scrollbar-width: none; padding-bottom: 4px;
-}
+.cat-pills { display: flex; gap: 8px; margin-bottom: 2rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
 .cat-pills::-webkit-scrollbar { display: none; }
 .cat-pill {
-  padding: 7px 18px;
-  border-radius: 30px;
-  border: 1px solid var(--border);
-  background: var(--bg3);
-  color: var(--muted);
-  font-size: 13px; font-weight: 500;
-  cursor: pointer;
-  transition: all .2s;
-  white-space: nowrap;
+  padding: 7px 18px; border-radius: 30px;
+  border: 1px solid var(--border); background: var(--bg3);
+  color: var(--muted); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all .2s; white-space: nowrap;
   font-family: 'DM Sans', sans-serif;
 }
 .cat-pill:hover { border-color: rgba(245,200,66,0.3); color: var(--text); }
-.cat-pill.active {
-  background: var(--gold);
-  color: #000; border-color: var(--gold);
-  font-weight: 700;
-}
+.cat-pill.active { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 700; }
 
-/* ── MOVIE ROW (horizontal scroll) ── */
-.movie-row {
-  display: flex; gap: 14px;
-  overflow-x: auto; scrollbar-width: none;
-  padding-bottom: 8px;
-  margin-bottom: 3rem;
-  scroll-snap-type: x mandatory;
-}
+/* MOVIE ROW */
+.movie-row { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; padding-bottom: 8px; margin-bottom: 3rem; scroll-snap-type: x mandatory; }
 .movie-row::-webkit-scrollbar { display: none; }
 
-/* ── MOVIE CARD ── */
-.movie-card {
-  flex-shrink: 0;
-  width: 185px;
-  cursor: pointer;
-  scroll-snap-align: start;
-  transition: transform .25s;
-  position: relative;
-}
+/* MOVIE CARD */
+.movie-card { flex-shrink: 0; width: 185px; cursor: pointer; scroll-snap-align: start; transition: transform .25s; position: relative; }
 .movie-card:hover { transform: scale(1.06); z-index: 5; }
 .movie-card:hover .card-overlay { opacity: 1; }
-.card-poster {
-  width: 185px; height: 275px;
-  border-radius: var(--radius);
-  object-fit: cover;
-  background: var(--bg3);
-  display: block;
-  border: 1px solid var(--border);
-}
+.card-poster { width: 185px; height: 275px; border-radius: var(--radius); object-fit: cover; background: var(--bg3); display: block; border: 1px solid var(--border); }
 .card-poster-fallback {
-  width: 185px; height: 275px;
-  border-radius: var(--radius);
-  background: var(--bg3);
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column;
-  gap: 8px;
-  border: 1px solid var(--border);
+  width: 185px; height: 275px; border-radius: var(--radius);
+  background: var(--bg3); display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 8px; border: 1px solid var(--border);
   font-size: 11px; color: var(--muted); text-align: center; padding: 10px;
 }
 .card-poster-fallback .fallback-icon { font-size: 2.5rem; }
 .card-overlay {
-  position: absolute; inset: 0;
-  border-radius: var(--radius);
+  position: absolute; inset: 0; border-radius: var(--radius);
   background: linear-gradient(180deg, transparent 40%, rgba(6,8,16,.95) 100%);
   opacity: 0; transition: opacity .25s;
   display: flex; flex-direction: column; justify-content: flex-end; padding: 12px;
 }
 .card-play-btn {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  background: var(--gold);
-  border: none; cursor: pointer;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--gold); border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 8px;
-  transition: transform .15s;
+  margin-bottom: 8px; transition: transform .15s;
 }
 .card-play-btn:hover { transform: scale(1.1); }
 .card-overlay-title { font-size: 12px; font-weight: 700; line-height: 1.3; margin-bottom: 4px; }
 .card-overlay-meta { font-size: 11px; color: var(--muted); }
 .card-rating {
   position: absolute; top: 10px; right: 10px;
-  background: rgba(0,0,0,.75);
-  border: 1px solid rgba(245,200,66,0.3);
-  border-radius: 6px;
-  padding: 3px 7px;
-  font-size: 11px; font-weight: 700;
-  color: var(--gold);
-  font-family: 'Space Mono', monospace;
-  backdrop-filter: blur(4px);
+  background: rgba(0,0,0,.75); border: 1px solid rgba(245,200,66,0.3);
+  border-radius: 6px; padding: 3px 7px;
+  font-size: 11px; font-weight: 700; color: var(--gold);
+  font-family: 'Space Mono', monospace; backdrop-filter: blur(4px);
 }
 .card-tag {
   position: absolute; top: 10px; left: 10px;
-  background: var(--red);
-  border-radius: 4px;
-  padding: 3px 7px;
-  font-size: 9px; font-weight: 700;
+  background: var(--red); border-radius: 4px;
+  padding: 3px 7px; font-size: 9px; font-weight: 700;
   letter-spacing: 1px; text-transform: uppercase;
 }
 .card-info { padding: 8px 2px 0; }
 .card-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-meta { font-size: 11px; color: var(--muted); }
 
-/* ── GRID VIEW ── */
-.movie-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
-  margin-bottom: 3rem;
-}
+/* GRID */
+.movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 3rem; }
 
-/* ── FEATURED LARGE CARD ── */
-.featured-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
-  margin-bottom: 3rem;
-}
-.featured-card {
-  position: relative;
-  height: 200px;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  cursor: pointer;
-  transition: transform .25s;
-  border: 1px solid var(--border);
-}
-.featured-card:hover { transform: scale(1.02); }
-.featured-card .fc-bg {
-  position: absolute; inset: 0;
-  background-size: cover; background-position: center;
-  transition: transform .4s;
-}
-.featured-card:hover .fc-bg { transform: scale(1.05); }
-.featured-card::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(6,8,16,.85) 0%, rgba(6,8,16,.4) 60%, transparent 100%);
-}
-.fc-content { position: relative; z-index: 2; padding: 18px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
-.fc-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 1px; margin-bottom: 4px; }
-.fc-meta { font-size: 12px; color: rgba(240,242,245,.6); }
+/* QUALITY BADGE */
+.quality-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+.q-4k { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+.q-1080 { background: var(--blue); color: #fff; }
+.q-720 { background: #10b981; color: #fff; }
 
-/* ══════════════════════════════════
-   PLAYER MODAL
-══════════════════════════════════ */
+/* PLAYER MODAL */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
-  background: rgba(0,0,0,.96);
+  background: rgba(0,0,0,.97);
   display: flex; flex-direction: column;
   align-items: center; justify-content: flex-start;
-  padding: 0;
   opacity: 0; pointer-events: none;
   transition: opacity .3s;
   overflow: hidden;
 }
 .modal-overlay.open { opacity: 1; pointer-events: all; }
-
-/* Player area */
-.player-container {
-  position: relative;
-  width: 100%; max-width: 1200px;
-  background: #000;
-  flex-shrink: 0;
-}
+.player-container { position: relative; width: 100%; max-width: 1200px; background: #000; flex-shrink: 0; }
 .player-container.fullscreen-player { max-width: 100%; }
-
-/* Embed iframe / video */
-.player-frame {
-  width: 100%;
-  aspect-ratio: 16/9;
-  background: #000;
-  display: block;
-}
-.player-frame iframe, .player-frame video {
-  width: 100%; height: 100%;
-  border: none; display: block;
-}
-
-/* Source tabs */
+.player-frame { width: 100%; aspect-ratio: 16/9; background: #000; display: block; }
+.player-frame iframe { width: 100%; height: 100%; border: none; display: block; }
 .source-tabs {
-  display: flex; gap: 6px;
-  padding: 8px 16px;
-  background: rgba(0,0,0,.9);
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto; scrollbar-width: none;
-  flex-wrap: wrap;
+  display: flex; gap: 6px; padding: 8px 16px;
+  background: rgba(0,0,0,.9); border-bottom: 1px solid var(--border);
+  overflow-x: auto; scrollbar-width: none; flex-wrap: wrap;
+  width: 100%; max-width: 1200px;
 }
 .source-tabs::-webkit-scrollbar { display: none; }
 .source-tab {
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg3);
-  color: var(--muted);
-  font-size: 12px; font-weight: 600;
-  cursor: pointer;
-  transition: all .2s;
-  font-family: 'DM Sans', sans-serif;
-  white-space: nowrap;
+  padding: 6px 14px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg3);
+  color: var(--muted); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif; white-space: nowrap;
 }
 .source-tab:hover { border-color: rgba(245,200,66,0.3); color: var(--text); }
 .source-tab.active { background: var(--gold); color: #000; border-color: var(--gold); }
 .source-tab.hd { position: relative; }
 .source-tab.hd::after {
-  content: 'HD';
-  position: absolute; top: -6px; right: -4px;
-  background: var(--blue);
-  color: #fff; font-size: 8px; font-weight: 800;
+  content: 'HD'; position: absolute; top: -6px; right: -4px;
+  background: var(--blue); color: #fff; font-size: 8px; font-weight: 800;
   padding: 1px 4px; border-radius: 3px;
 }
-
-/* Player controls overlay */
 .player-topbar {
   position: absolute; top: 0; left: 0; right: 0;
   padding: 14px 20px;
   background: linear-gradient(180deg, rgba(0,0,0,.8) 0%, transparent 100%);
   display: flex; align-items: center; gap: 12px;
-  z-index: 10;
-  opacity: 0; transition: opacity .3s;
+  z-index: 10; opacity: 0; transition: opacity .3s;
 }
 .player-container:hover .player-topbar { opacity: 1; }
 .player-back {
   display: flex; align-items: center; gap: 8px;
-  background: rgba(0,0,0,.5);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 14px;
-  color: var(--text);
-  font-size: 13px; font-weight: 600;
-  cursor: pointer;
-  transition: all .2s;
-  font-family: 'DM Sans', sans-serif;
+  background: rgba(0,0,0,.5); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 14px;
+  color: var(--text); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif;
   backdrop-filter: blur(8px);
 }
 .player-back:hover { background: rgba(0,0,0,.8); border-color: rgba(245,200,66,0.4); color: var(--gold); }
@@ -534,53 +319,30 @@ main { padding: 3rem 2rem; max-width: 1600px; margin: 0 auto; }
   transition: all .2s; backdrop-filter: blur(8px);
 }
 .player-fullscreen-btn:hover { border-color: rgba(245,200,66,0.4); color: var(--gold); }
-
-/* Movie info below player */
 .modal-info {
   width: 100%; max-width: 1200px;
-  padding: 20px 24px;
-  background: var(--bg2);
+  padding: 20px 24px; background: var(--bg2);
   border-bottom: 1px solid var(--border);
-  overflow-y: auto;
-  flex: 1;
+  overflow-y: auto; flex: 1;
 }
 .modal-grid { display: grid; grid-template-columns: 1fr auto; gap: 2rem; align-items: start; }
 .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; letter-spacing: 1.5px; margin-bottom: 6px; }
 .modal-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .modal-meta span { font-size: 13px; color: var(--muted); }
 .modal-meta .rating { color: var(--gold); font-weight: 700; font-family: 'Space Mono', monospace; font-size: 14px; }
-.badge {
-  padding: 3px 10px; border-radius: 4px;
-  font-size: 11px; font-weight: 700;
-  letter-spacing: .8px; text-transform: uppercase;
-}
+.badge { padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; }
 .badge-hd { background: var(--blue); color: #fff; }
 .badge-genre { background: var(--bg4); color: var(--muted); border: 1px solid var(--border); }
 .modal-desc { font-size: 14px; line-height: 1.75; color: rgba(240,242,245,.75); margin-bottom: 16px; max-width: 700px; }
 .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.modal-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 20px; border-radius: 8px;
-  font-size: 13px; font-weight: 600;
-  cursor: pointer; transition: all .2s;
-  font-family: 'DM Sans', sans-serif;
-}
+.modal-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif; }
 .modal-btn-primary { background: var(--gold); color: #000; border: none; }
 .modal-btn-primary:hover { background: var(--gold2); }
 .modal-btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
 .modal-btn-secondary:hover { background: var(--bg4); border-color: rgba(245,200,66,0.3); }
-.modal-poster {
-  width: 120px; height: 180px;
-  border-radius: var(--radius);
-  object-fit: cover;
-  border: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-/* Source status message */
+.modal-poster { width: 120px; height: 180px; border-radius: var(--radius); object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
 .source-msg {
-  padding: 10px 16px;
-  background: var(--bg3);
+  padding: 10px 16px; background: var(--bg3);
   border-bottom: 1px solid var(--border);
   font-size: 13px; color: var(--muted);
   display: flex; align-items: center; gap: 8px;
@@ -589,59 +351,133 @@ main { padding: 3rem 2rem; max-width: 1600px; margin: 0 auto; }
 .source-msg .dot-live { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; flex-shrink: 0; animation: blink 1.5s infinite; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-/* ══════════════════════════════════
-   LOADING STATE
-══════════════════════════════════ */
-.skeleton {
-  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
-  background-size: 400% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: var(--radius);
+/* LOADING */
+.iframe-loading {
+  position: absolute; inset: 0; background: #000;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px; z-index: 5;
 }
+.iframe-loading.hidden { display: none; }
+.loader-ring { width: 50px; height: 50px; border: 3px solid rgba(245,200,66,.2); border-top-color: var(--gold); border-radius: 50%; animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-text { font-size: 13px; color: var(--muted); }
+
+/* SKELETON */
+.skeleton { background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%); background-size: 400% 100%; animation: shimmer 1.5s infinite; border-radius: var(--radius); }
 @keyframes shimmer { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
 
-/* ══════════════════════════════════
-   SEARCH RESULTS
-══════════════════════════════════ */
-.search-overlay {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(6,8,16,.98);
-  padding: 80px 2rem 2rem;
-  overflow-y: auto;
-  opacity: 0; pointer-events: none; transition: opacity .25s;
-}
+/* SEARCH */
+.search-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(6,8,16,.98); padding: 80px 2rem 2rem; overflow-y: auto; opacity: 0; pointer-events: none; transition: opacity .25s; }
 .search-overlay.open { opacity: 1; pointer-events: all; }
 .search-results-title { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 1.5px; margin-bottom: 1.5rem; }
 .search-results-title span { color: var(--gold); }
-.search-close {
-  position: absolute; top: 22px; right: 24px;
-  background: var(--bg3); border: 1px solid var(--border);
-  border-radius: 8px; padding: 8px 14px;
-  color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600;
-  transition: all .2s; font-family: 'DM Sans', sans-serif;
-}
+.search-close { position: absolute; top: 22px; right: 24px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600; transition: all .2s; font-family: 'DM Sans', sans-serif; }
 .search-close:hover { background: var(--bg4); }
 .search-empty { text-align: center; padding: 4rem 2rem; color: var(--muted); }
 .search-empty .se-icon { font-size: 4rem; margin-bottom: 1rem; }
-.search-empty p { font-size: 15px; }
 
-/* ══════════════════════════════════
-   FOOTER
-══════════════════════════════════ */
-footer {
-  background: var(--bg2);
-  border-top: 1px solid var(--border);
-  padding: 3rem 2rem;
-  margin-top: 4rem;
-  text-align: center;
+/* MODAL TABS */
+.modal-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.modal-tab { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg3); color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif; }
+.modal-tab.active { background: var(--bg4); color: var(--text); border-color: rgba(245,200,66,.3); }
+
+/* CUSTOM SOURCE MODAL */
+.custom-source-modal {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,.92);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .3s;
 }
+.custom-source-modal.open { opacity: 1; pointer-events: all; }
+.custom-source-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  width: 90%; max-width: 540px;
+  animation: fadeUp .3s ease both;
+}
+.csb-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 1.5px; margin-bottom: 6px; }
+.csb-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+.csb-label { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.csb-input {
+  width: 100%;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 16px;
+  font-size: 14px; font-family: 'DM Sans', sans-serif;
+  color: var(--text); outline: none; transition: all .2s;
+  margin-bottom: 16px;
+}
+.csb-input:focus { border-color: rgba(245,200,66,0.4); background: var(--bg4); }
+.csb-input::placeholder { color: var(--muted); }
+.csb-row { display: flex; gap: 10px; margin-top: 8px; }
+.csb-btn {
+  flex: 1; padding: 12px 20px; border-radius: 10px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: all .2s; font-family: 'DM Sans', sans-serif;
+  border: none;
+}
+.csb-btn-primary { background: var(--gold); color: #000; }
+.csb-btn-primary:hover { background: var(--gold2); }
+.csb-btn-cancel { background: var(--bg3); color: var(--muted); border: 1px solid var(--border) !important; }
+.csb-btn-cancel:hover { background: var(--bg4); color: var(--text); }
+.csb-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.csb-preset {
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border); background: var(--bg3);
+  color: var(--muted); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif;
+}
+.csb-preset:hover { border-color: rgba(245,200,66,0.3); color: var(--text); }
+.csb-preset.selected { background: rgba(245,200,66,0.15); border-color: var(--gold); color: var(--gold); }
+.csb-info { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; font-size: 12px; color: var(--muted); line-height: 1.7; margin-bottom: 20px; }
+.csb-info strong { color: var(--text); }
+
+/* SAVED SOURCES */
+.saved-sources { margin-top: 16px; }
+.saved-sources-title { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.saved-source-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 8px;
+  background: var(--bg3); border: 1px solid var(--border);
+  margin-bottom: 6px; cursor: pointer; transition: all .2s;
+}
+.saved-source-item:hover { border-color: rgba(245,200,66,0.3); background: var(--bg4); }
+.ssi-url { flex: 1; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ssi-use { font-size: 11px; font-weight: 700; color: var(--gold); background: rgba(245,200,66,0.1); padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.ssi-del { font-size: 11px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 4px; opacity: .6; }
+.ssi-del:hover { opacity: 1; color: var(--red); }
+
+/* FOOTER */
+footer { background: var(--bg2); border-top: 1px solid var(--border); padding: 3rem 2rem; margin-top: 4rem; text-align: center; }
 .footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--gold); letter-spacing: 2px; margin-bottom: .5rem; }
 .footer-text { font-size: 12px; color: var(--muted); line-height: 1.8; }
 .footer-disclaimer { font-size: 11px; color: rgba(107,122,154,.6); margin-top: 1rem; max-width: 600px; margin-left: auto; margin-right: auto; }
 
-/* ══════════════════════════════════
-   RESPONSIVE
-══════════════════════════════════ */
+/* TOAST */
+.toast-container { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.toast { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 13px; font-weight: 500; color: var(--text); backdrop-filter: blur(12px); box-shadow: 0 8px 30px rgba(0,0,0,.5); animation: toastIn .3s ease both; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.toast.success { border-color: rgba(74,222,128,.3); }
+.toast.error { border-color: rgba(232,52,74,.3); }
+@keyframes toastIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+/* SCROLL TOP */
+.scroll-top { position: fixed; bottom: 2rem; right: 2rem; z-index: 50; width: 44px; height: 44px; border-radius: 50%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .3s; opacity: 0; pointer-events: none; transform: translateY(10px); }
+.scroll-top.show { opacity: 1; pointer-events: all; transform: translateY(0); }
+.scroll-top:hover { background: var(--gold); color: #000; border-color: var(--gold); }
+
+/* ADD SOURCE BTN */
+.add-source-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 16px; border-radius: 20px;
+  border: 1px dashed rgba(245,200,66,0.4);
+  background: rgba(245,200,66,0.05);
+  color: var(--gold); font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif;
+  white-space: nowrap;
+}
+.add-source-btn:hover { background: rgba(245,200,66,0.12); border-color: var(--gold); }
+
 @media (max-width: 768px) {
   nav { padding: 0 1rem; gap: 1rem; }
   .nav-links { display: none; }
@@ -651,107 +487,8 @@ footer {
   .search-wrap input:focus { width: 200px; }
   .modal-grid { grid-template-columns: 1fr; }
   .modal-poster { display: none; }
+  .custom-source-box { padding: 24px 16px; }
 }
-
-/* ══════════════════════════════════
-   TOAST
-══════════════════════════════════ */
-.toast-container {
-  position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
-  z-index: 9999; display: flex; flex-direction: column; gap: 8px; align-items: center;
-}
-.toast {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 20px;
-  font-size: 13px; font-weight: 500;
-  color: var(--text);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 30px rgba(0,0,0,.5);
-  animation: toastIn .3s ease both;
-  white-space: nowrap;
-  display: flex; align-items: center; gap: 8px;
-}
-.toast.success { border-color: rgba(74,222,128,.3); }
-.toast.error { border-color: rgba(232,52,74,.3); }
-@keyframes toastIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-
-/* ══════════════════════════════════
-   QUALITY BADGE
-══════════════════════════════════ */
-.quality-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 10px; font-weight: 800;
-  letter-spacing: 1px;
-}
-.q-4k { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
-.q-1080 { background: var(--blue); color: #fff; }
-.q-720 { background: #10b981; color: #fff; }
-
-/* Tabs in modal */
-.modal-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-.modal-tab {
-  padding: 8px 16px; border-radius: 8px;
-  border: 1px solid var(--border); background: var(--bg3);
-  color: var(--muted); font-size: 13px; font-weight: 600;
-  cursor: pointer; transition: all .2s; font-family: 'DM Sans', sans-serif;
-}
-.modal-tab.active { background: var(--bg4); color: var(--text); border-color: rgba(245,200,66,.3); }
-
-/* Torrent search results */
-.torrent-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.torrent-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  cursor: pointer; transition: all .2s;
-}
-.torrent-item:hover { border-color: rgba(245,200,66,.3); background: var(--bg4); }
-.ti-quality { font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; background: var(--blue); color: #fff; flex-shrink: 0; }
-.ti-name { flex: 1; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ti-size { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; flex-shrink: 0; }
-.ti-seeds { font-size: 11px; color: #4ade80; flex-shrink: 0; font-family: 'Space Mono', monospace; }
-
-/* iframe loading state */
-.iframe-loading {
-  position: absolute; inset: 0;
-  background: #000;
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 16px; z-index: 5;
-  pointer-events: none;
-}
-.iframe-loading.hidden { display: none; }
-.loader-ring {
-  width: 50px; height: 50px;
-  border: 3px solid rgba(245,200,66,.2);
-  border-top-color: var(--gold);
-  border-radius: 50%;
-  animation: spin .9s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.loader-text { font-size: 13px; color: var(--muted); }
-
-/* Scroll up button */
-.scroll-top {
-  position: fixed; bottom: 2rem; right: 2rem; z-index: 50;
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 18px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all .3s;
-  opacity: 0; pointer-events: none; transform: translateY(10px);
-}
-.scroll-top.show { opacity: 1; pointer-events: all; transform: translateY(0); }
-.scroll-top:hover { background: var(--gold); color: #000; border-color: var(--gold); }
 </style>
 </head>
 <body>
@@ -774,7 +511,8 @@ footer {
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       <input type="text" id="search-input" placeholder="Rechercher..." oninput="handleSearch(this.value)" onkeydown="if(event.key==='Escape')closeSearch()">
     </div>
-    <button class="nav-btn" onclick="showRandom()">🎲 Surprise</button>
+    <button class="nav-btn" onclick="openCustomSource()">🔗 Ajouter source</button>
+    <button class="nav-btn" style="background:var(--bg3);color:var(--text);border:1px solid var(--border)" onclick="showRandom()">🎲 Surprise</button>
   </div>
 </nav>
 
@@ -787,21 +525,15 @@ footer {
 
 <!-- MAIN -->
 <main>
-  <!-- CATEGORIES -->
   <div class="cat-pills" id="cat-pills"></div>
-
-  <!-- DYNAMIC SECTIONS -->
   <div id="sections-container"></div>
 </main>
 
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo">CINE<span style="color:var(--text)">STREAM</span></div>
-  <div class="footer-text">Votre plateforme de streaming gratuite</div>
-  <div class="footer-disclaimer">
-    CineStream utilise des sources d'intégration publiques (vidsrc, multiembed) ainsi que des liens directs légaux.<br>
-    Toutes les œuvres appartiennent à leurs propriétaires respectifs. Usage personnel uniquement.
-  </div>
+  <div class="footer-text">Votre plateforme de streaming · Ajoutez vos propres sources</div>
+  <div class="footer-disclaimer">CineStream utilise des sources d'intégration publiques. Toutes les œuvres appartiennent à leurs propriétaires respectifs. Usage personnel uniquement.</div>
 </footer>
 
 <!-- SCROLL TOP -->
@@ -818,23 +550,61 @@ footer {
   </div>
 </div>
 
-<!-- TOAST CONTAINER -->
+<!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
+
+<!-- CUSTOM SOURCE MODAL -->
+<div class="custom-source-modal" id="custom-source-modal">
+  <div class="custom-source-box">
+    <h2 class="csb-title">🔗 Ajouter une Source</h2>
+    <p class="csb-subtitle">Colle le lien d'un lecteur ou d'un embed pour regarder un film en entier. Ce lien sera chargé directement dans le lecteur.</p>
+
+    <div class="csb-info">
+      <strong>💡 Comment ça marche ?</strong><br>
+      Colle l'URL d'un site de streaming ou d'un lecteur embarqué (iframe). Le contenu sera affiché dans CineStream. Tu peux aussi utiliser des liens directs vers des vidéos MP4.
+    </div>
+
+    <div class="csb-label">Sources rapides (clique pour pré-remplir)</div>
+    <div class="csb-presets" id="csb-presets">
+      <button class="csb-preset" onclick="selectPreset('https://vidsrc.to/embed/movie/')">VidSrc</button>
+      <button class="csb-preset" onclick="selectPreset('https://vidsrc.me/embed/movie?imdb=')">VidSrc #2</button>
+      <button class="csb-preset" onclick="selectPreset('https://multiembed.mov/?video_id=')">MultiEmbed</button>
+      <button class="csb-preset" onclick="selectPreset('https://www.2embed.cc/embed/')">2Embed</button>
+      <button class="csb-preset" onclick="selectPreset('https://moviesapi.club/movie/')">MoviesAPI</button>
+      <button class="csb-preset" onclick="selectPreset('https://player.smashy.stream/movie?id=')">SmashyStream</button>
+    </div>
+
+    <div class="csb-label">Lien de la source (URL complète)</div>
+    <input type="url" class="csb-input" id="csb-url-input" placeholder="https://exemple.com/embed/film..." />
+
+    <div class="csb-label">Nom de la source (facultatif)</div>
+    <input type="text" class="csb-input" id="csb-name-input" placeholder="Ex: Mon lecteur préféré" />
+
+    <!-- Saved sources -->
+    <div class="saved-sources" id="saved-sources-section" style="display:none">
+      <div class="saved-sources-title">📌 Sources sauvegardées</div>
+      <div id="saved-sources-list"></div>
+    </div>
+
+    <div class="csb-row">
+      <button class="csb-btn csb-btn-cancel" onclick="closeCustomSource()">Annuler</button>
+      <button class="csb-btn csb-btn-primary" onclick="saveAndUseSource()">▶ Utiliser cette source</button>
+    </div>
+  </div>
+</div>
 
 <!-- PLAYER MODAL -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="player-container" id="player-container">
-    <!-- topbar -->
     <div class="player-topbar" id="player-topbar">
       <button class="player-back" onclick="closeModal()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
         Retour
       </button>
       <span class="player-title-bar" id="player-title-bar"></span>
+      <button class="add-source-btn" onclick="openCustomSourceForCurrent()">+ Source perso</button>
       <button class="player-fullscreen-btn" onclick="toggleFullscreen()" title="Plein écran">⛶</button>
     </div>
-
-    <!-- iframe area -->
     <div class="player-frame" id="player-frame">
       <div class="iframe-loading" id="iframe-loading">
         <div class="loader-ring"></div>
@@ -843,16 +613,13 @@ footer {
     </div>
   </div>
 
-  <!-- source status -->
   <div class="source-msg" id="source-msg">
     <div class="dot-live"></div>
-    <span id="source-msg-text">Sélectionne une source ci-dessous pour lancer la lecture</span>
+    <span id="source-msg-text">Sélectionne une source ci-dessous</span>
   </div>
 
-  <!-- source tabs -->
   <div class="source-tabs" id="source-tabs"></div>
 
-  <!-- info -->
   <div class="modal-info" id="modal-info">
     <div class="modal-tabs">
       <button class="modal-tab active" onclick="switchModalTab('info',this)">ℹ️ Infos</button>
@@ -870,434 +637,215 @@ footer {
       </div>
     </div>
     <div id="modal-tab-sources" style="display:none">
-      <div class="torrent-list" id="sources-list"></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Si une source ne fonctionne pas, essaie la suivante. Tu peux aussi ajouter ta propre source avec le bouton <strong style="color:var(--gold)">+ Source perso</strong>.</p>
+      <div id="sources-list"></div>
     </div>
   </div>
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════
-// DATABASE — Films & Séries avec vraies images TMDB + sources
-// ══════════════════════════════════════════════════════════════
-
 const TMDB_IMG = 'https://image.tmdb.org/t/p/';
 const w500 = TMDB_IMG + 'w500';
 const original = TMDB_IMG + 'original';
 
-// Sources d'embed qui fonctionnent réellement (publiques, sans clé)
+// Sources d'embed — films COMPLETS uniquement (pas de bandes-annonces)
 function getEmbedSources(movie) {
   const sources = [];
   const imdb = movie.imdb || '';
   const tmdb = movie.tmdb || '';
-  const title = encodeURIComponent(movie.title);
 
   if (imdb) {
-    sources.push({
-      label: '▶ VidSrc',
-      url: `https://vidsrc.to/embed/movie/${imdb}`,
-      quality: 'HD', hd: true
-    });
-    sources.push({
-      label: '▶ VidSrc #2',
-      url: `https://vidsrc.me/embed/movie?imdb=${imdb}`,
-      quality: 'HD', hd: true
-    });
-    sources.push({
-      label: '▶ SuperEmbed',
-      url: `https://multiembed.mov/?video_id=${imdb}&tmdb=1`,
-      quality: '1080p', hd: true
-    });
-    sources.push({
-      label: '▶ 2Embed',
-      url: `https://www.2embed.cc/embed/${imdb}`,
-      quality: 'HD'
-    });
+    sources.push({ label: '▶ VidSrc', url: `https://vidsrc.to/embed/movie/${imdb}`, quality: 'HD', hd: true });
+    sources.push({ label: '▶ VidSrc #2', url: `https://vidsrc.me/embed/movie?imdb=${imdb}`, quality: 'HD', hd: true });
+    sources.push({ label: '▶ SuperEmbed', url: `https://multiembed.mov/?video_id=${imdb}&tmdb=1`, quality: '1080p', hd: true });
+    sources.push({ label: '▶ 2Embed', url: `https://www.2embed.cc/embed/${imdb}`, quality: 'HD' });
   }
   if (tmdb) {
-    sources.push({
-      label: '▶ MoviesAPI',
-      url: `https://moviesapi.club/movie/${tmdb}`,
-      quality: '1080p', hd: true
-    });
-    sources.push({
-      label: '▶ SMashyStream',
-      url: `https://player.smashy.stream/movie?id=${tmdb}`,
-      quality: '720p'
-    });
+    sources.push({ label: '▶ MoviesAPI', url: `https://moviesapi.club/movie/${tmdb}`, quality: '1080p', hd: true });
+    sources.push({ label: '▶ SmashyStream', url: `https://player.smashy.stream/movie?id=${tmdb}`, quality: '720p' });
+    sources.push({ label: '▶ AutoEmbed', url: `https://autoembed.co/movie/tmdb/${tmdb}`, quality: 'HD', hd: true });
+    sources.push({ label: '▶ NontonGo', url: `https://www.nontongo.win/embed/movie/${tmdb}`, quality: '720p' });
   }
-  if (movie.youtube) {
-    sources.push({
-      label: '▶ Bande-annonce',
-      url: `https://www.youtube.com/embed/${movie.youtube}?autoplay=1`,
-      quality: 'YT'
-    });
-  }
+
+  // Ajouter les sources personnalisées sauvegardées
+  const saved = getSavedSources();
+  saved.forEach(s => {
+    sources.push({ label: `⭐ ${s.name}`, url: s.url, quality: 'PERSO', custom: true });
+  });
+
   return sources;
 }
 
-// CATALOGUE COMPLET
 const MOVIES = [
-  // ── ANIMATION CLASSIQUE ──
-  {
-    id: 1, title: 'Marsupilami', year: 2012, genre: ['animation','comedie','famille'],
-    rating: 5.7, duration: '1h47', lang: 'FR',
-    imdb: 'tt1844613', tmdb: '73467',
-    poster: `${w500}/6caBqJxrSKnFZxvUFLJcRm4J0lC.jpg`,
-    backdrop: `${original}/rOVEhqnMFcKHAeHhy4WLY8hkzaX.jpg`,
-    desc: 'Avec Nicolas et Bruno, deux amis qui se retrouvent dans la jungle africaine à la recherche du trésor du Marsupilami. Une comédie familiale pleine de rebondissements avec l\'emblématique animal à la longue queue !',
-    youtube: 'jIEHUH2PGKY', featured: true, tag: 'POPULAIRE'
-  },
-  {
-    id: 2, title: 'Mario — Le Film', year: 2023, genre: ['animation','aventure','famille'],
-    rating: 7.1, duration: '1h32', lang: 'FR',
-    imdb: 'tt6718170', tmdb: '502356',
-    poster: `${w500}/qNBAXBIQlnOThrVvA6mA2B5ggV6.jpg`,
-    backdrop: `${original}/9n2tJBplPbgR2ca05hS5CKXwP2c.jpg`,
-    desc: 'Mario et Luigi, deux plombiers italiens, sont transportés dans un monde magique. Mario doit traverser des royaumes extraordinaires pour sauver un royaume enchanté de la tyrannie de Bowser.',
-    youtube: 'KMlBrFDcQhI', featured: true
-  },
-  {
-    id: 3, title: 'Shrek', year: 2001, genre: ['animation','comedie','aventure'],
-    rating: 7.9, duration: '1h30', lang: 'FR',
-    imdb: 'tt0126029', tmdb: '808',
-    poster: `${w500}/iB64vpL3dIObXuFCtkZGgGSUqJu.jpg`,
-    backdrop: `${original}/jFo3Oz7pENWG8LZaibXQSTFHHMN.jpg`,
-    desc: 'Un ogre solitaire vivant dans un marais part en mission pour récupérer ses terres. Une épopée hilarante avec l\'Âne le plus bavard de l\'histoire.',
-    youtube: 'CwXOrWvPBPk', featured: true
-  },
-  {
-    id: 4, title: 'Le Roi Lion', year: 1994, genre: ['animation','aventure','famille'],
-    rating: 8.5, duration: '1h28', lang: 'FR',
-    imdb: 'tt0110357', tmdb: '8587',
-    poster: `${w500}/sKCr78MXSLixwmZ8DyJLrpMsd15.jpg`,
-    backdrop: `${original}/wXsQvli6tWqja51pYxXNG1LFIGV.jpg`,
-    desc: 'Simba, un lionceau, doit reprendre le trône de son père après que son oncle Scar l\'ait assassiné. Un chef-d\'œuvre de l\'animation mondiale avec une bande originale légendaire.',
-    youtube: '4sj1MT05lAA', featured: true
-  },
-  {
-    id: 5, title: 'Toy Story', year: 1995, genre: ['animation','aventure','comedie'],
-    rating: 8.3, duration: '1h21', lang: 'FR',
-    imdb: 'tt0114709', tmdb: '862',
-    poster: `${w500}/uXDfjJbdP4ijW5hWSBrPu9cdmR9.jpg`,
-    backdrop: `${original}/dji4Fm0gCDVb9DQQMRvAI8YNnTz.jpg`,
-    desc: 'Quand leur propriétaire n\'est pas là, les jouets prennent vie. Woody, le cow-boy, voit sa place menacée par Buzz l\'Éclair, un astronaute futuriste.',
-    youtube: 'KYz2wyBy3kc'
-  },
-  {
-    id: 6, title: 'Aladdin', year: 1992, genre: ['animation','aventure','comedie','famille'],
-    rating: 8.0, duration: '1h30', lang: 'FR',
-    imdb: 'tt0103639', tmdb: '812',
-    poster: `${w500}/iiZZdoQBEYBv6id8su7ImL0oCbD.jpg`,
-    backdrop: `${original}/8BEn6c6MCXuXfgEJbgWfMXx3gT4.jpg`,
-    desc: 'Un jeune voleur des rues découvre une lampe magique avec un génie à l\'intérieur. Classique Disney avec Robin Williams inoubliable !',
-    youtube: 'vSBMkNNKRgs'
-  },
-  {
-    id: 7, title: 'La Belle et la Bête', year: 1991, genre: ['animation','aventure','famille'],
-    rating: 8.0, duration: '1h24', lang: 'FR',
-    imdb: 'tt0101414', tmdb: '10020',
-    poster: `${w500}/tWqifoMy23wSTy0AXtBj38aMZfw.jpg`,
-    backdrop: `${original}/aFd43pyYxMGfMhMXNXlZKa1VeLb.jpg`,
-    desc: 'Belle, une jeune femme courageuse, se retrouve prisonnière d\'un château enchanté habité par une bête. Un conte d\'amour intemporel.',
-    youtube: '_L2IfMBDkn4'
-  },
-  {
-    id: 8, title: 'Mulan', year: 1998, genre: ['animation','aventure','famille'],
-    rating: 7.6, duration: '1h28', lang: 'FR',
-    imdb: 'tt0120762', tmdb: '10674',
-    poster: `${w500}/pR5bNOqjPaKHaSXQXGsHFuJJmQp.jpg`,
-    backdrop: `${original}/v1pAT0e6iuEBmCBFzMrjUKqgTXi.jpg`,
-    desc: 'Pour sauver l\'honneur de sa famille, Mulan se déguise en homme pour rejoindre l\'armée. Un film d\'animation épique sur le courage et la détermination.',
-    youtube: 'YnFzJHp1-YU'
-  },
-  // ── GALAXIE / SCI-FI ──
-  {
-    id: 9, title: 'Les Gardiens de la Galaxie', year: 2014, genre: ['action','aventure','comedie','fantastique'],
-    rating: 8.0, duration: '2h01', lang: 'FR',
-    imdb: 'tt2015381', tmdb: '118340',
-    poster: `${w500}/r7vmZjiyZw9rpJMQJdXpjgiCOk9.jpg`,
-    backdrop: `${original}/bHarw8xrmQeqf3t8HpuMY7zoK4x.jpg`,
-    desc: 'Peter Quill, alias Star-Lord, s\'associe à des renégats de l\'espace — Gamora, Drax, Rocket et Groot — pour former une équipe de gardiens de l\'univers. Un film Marvel explosif et drôle !',
-    youtube: 'd96cjJhvlMA', featured: true, tag: 'MARVEL'
-  },
-  {
-    id: 10, title: 'Interstellar', year: 2014, genre: ['fantastique','aventure'],
-    rating: 8.6, duration: '2h49', lang: 'FR',
-    imdb: 'tt0816692', tmdb: '157336',
-    poster: `${w500}/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg`,
-    backdrop: `${original}/pbrkL804hqHBr5ZUUA5VKEGfELO.jpg`,
-    desc: 'Une équipe d\'explorateurs voyage à travers un trou de ver apparu près de Saturne pour assurer la survie de l\'humanité. Christopher Nolan au sommet de son art.',
-    youtube: 'zSWdZVtXT7E'
-  },
-  {
-    id: 11, title: 'Star Wars : Épisode IV', year: 1977, genre: ['aventure','fantastique','action'],
-    rating: 8.6, duration: '2h01', lang: 'FR',
-    imdb: 'tt0076759', tmdb: '11',
-    poster: `${w500}/6FfCtAuVAW8XJjZ7eWeLibRLWTw.jpg`,
-    backdrop: `${original}/AfDMNXo0rRUB3aWK1R6R6LWb1Ue.jpg`,
-    desc: 'Luke Skywalker, un jeune fermier, se joint à un pilote rebelle pour sauver la princesse Leia et la galaxie d\'une organisation impériale malveillante.',
-    youtube: 'vZ734NWnAHA'
-  },
-  {
-    id: 12, title: 'Avengers : Endgame', year: 2019, genre: ['action','aventure','fantastique'],
-    rating: 8.4, duration: '3h01', lang: 'FR',
-    imdb: 'tt4154796', tmdb: '299534',
-    poster: `${w500}/or06FN3Dka5tukK1e9sl16pB3iy.jpg`,
-    backdrop: `${original}/7RyHsO4yDXtBv1zUU3mTpHeQ0d5.jpg`,
-    desc: 'Après les événements dévastateurs de Infinity War, les Avengers se rassemblent pour annuler les actions de Thanos et restaurer l\'ordre dans l\'univers.',
-    youtube: 'TcMBFSGVi1c'
-  },
-  {
-    id: 13, title: 'Spider-Man: No Way Home', year: 2021, genre: ['action','aventure','fantastique'],
-    rating: 8.2, duration: '2h28', lang: 'FR',
-    imdb: 'tt10872600', tmdb: '634649',
-    poster: `${w500}/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg`,
-    backdrop: `${original}/4OTYefcAlaShn6TGVK33UxLW9R7.jpg`,
-    desc: 'Peter Parker demande à Doctor Strange un sort pour que le monde oublie son identité secrète, ouvrant accidentellement le multivers.',
-    youtube: 'JfVOs4VSpmA'
-  },
-  // ── AVENTURE / FAMILLE ──
-  {
-    id: 14, title: 'Indiana Jones : Les Aventuriers', year: 1981, genre: ['aventure','action'],
-    rating: 8.4, duration: '1h55', lang: 'FR',
-    imdb: 'tt0082971', tmdb: '85',
-    poster: `${w500}/ceG9VzoRAVGwivFU403Wc3AHRys.jpg`,
-    backdrop: `${original}/i9UtEJKVFINULCOJfyFERwMptAk.jpg`,
-    desc: 'Un archéologue aventurier part à la recherche de l\'Arche d\'Alliance contre des agents nazis. Le début d\'une saga légendaire avec Harrison Ford !',
-    youtube: 'XkkZgnHSCHo'
-  },
-  {
-    id: 15, title: 'Jurassic Park', year: 1993, genre: ['aventure','fantastique'],
-    rating: 8.2, duration: '2h07', lang: 'FR',
-    imdb: 'tt0107290', tmdb: '329',
-    poster: `${w500}/oU7Oq2kFAAlGqbU4VoAE36g4hoI.jpg`,
-    backdrop: `${original}/9BBTo63ANSmhC4e6r62OJFuK2GL.jpg`,
-    desc: 'Un milliardaire ouvre un parc à thème avec des dinosaures clonés. Tout se passe bien... jusqu\'à ce que les animaux s\'échappent. Le film culte de Spielberg !',
-    youtube: 'lc0UehYemQA'
-  },
-  {
-    id: 16, title: 'Harry Potter à l\'École des Sorciers', year: 2001, genre: ['aventure','fantastique','famille'],
-    rating: 7.6, duration: '2h32', lang: 'FR',
-    imdb: 'tt0241527', tmdb: '671',
-    poster: `${w500}/wuMc08IPKEatf9rnMNXvIDxqP4W.jpg`,
-    backdrop: `${original}/hziiv14OpD73u9gApdqVeAFmwEI.jpg`,
-    desc: 'Harry Potter découvre le jour de ses 11 ans qu\'il est un sorcier. Il rejoint l\'école de magie Poudlard pour y apprendre les arts magiques.',
-    youtube: 'VyHV0BRtdxo'
-  },
-  {
-    id: 17, title: 'Le Seigneur des Anneaux : La Communauté', year: 2001, genre: ['aventure','fantastique'],
-    rating: 8.8, duration: '3h28', lang: 'FR',
-    imdb: 'tt0120737', tmdb: '120',
-    poster: `${w500}/6oom5QYQ2yQTMJIbnvbkBL9cHo6.jpg`,
-    backdrop: `${original}/pIkRyD18kl4FhoCNQuWxWu5cBLM.jpg`,
-    desc: 'Frodon Sacquet hérite d\'un anneau mystérieux. Une communauté de neuf membres se forme pour le détruire et ainsi sauver la Terre du Milieu.',
-    youtube: 'V75dMMIW2B4'
-  },
-  {
-    id: 18, title: 'Retour vers le Futur', year: 1985, genre: ['aventure','comedie','fantastique'],
-    rating: 8.5, duration: '1h56', lang: 'FR',
-    imdb: 'tt0088763', tmdb: '105',
-    poster: `${w500}/fNOH9f1aA7XRTzl1sAOx9iF553Q.jpg`,
-    backdrop: `${original}/8h8dMPCiDJFQjmICF7cUVWBMvb1.jpg`,
-    desc: 'Un adolescent voyage accidentellement 30 ans dans le passé dans la DeLorean du Dr. Emmett Brown et doit s\'assurer que ses parents tombent amoureux.',
-    youtube: 'qvsgGtivCgs'
-  },
-  // ── COMEDIE ──
-  {
-    id: 19, title: 'Les Visiteurs', year: 1993, genre: ['comedie','fantastique'],
-    rating: 7.0, duration: '1h47', lang: 'FR',
-    imdb: 'tt0108500', tmdb: '13688',
-    poster: `${w500}/q0PNFGKs2JkF5ZLRfKCOHHr3JjT.jpg`,
-    backdrop: `${original}/5x6NRXxeTqn49KMXmjS0P5v9uqE.jpg`,
-    desc: 'Un chevalier du Moyen-Âge et son valet débarquent accidentellement dans la France contemporaine grâce à un sort raté. La comédie française culte !',
-    youtube: 'WNF0aJOTVMQ', tag: 'CULTE'
-  },
-  {
-    id: 20, title: 'Le Fabuleux Destin d\'Amélie Poulain', year: 2001, genre: ['comedie'],
-    rating: 8.3, duration: '2h02', lang: 'FR',
-    imdb: 'tt0211915', tmdb: '194',
-    poster: `${w500}/hmlVMdAHqJd2dNkMdjIGGmRaFm8.jpg`,
-    backdrop: `${original}/zT3WQ5rJwK9bFOgFq7PaAK4bQTu.jpg`,
-    desc: 'Amélie, une jeune serveuse parisienne, décide de transformer la vie des autres personnes autour d\'elle. Un film poétique et enchanteur de Jean-Pierre Jeunet.',
-    youtube: 'l25nPelH3b0'
-  },
-  {
-    id: 21, title: 'Bienvenue chez les Ch\'tis', year: 2008, genre: ['comedie'],
-    rating: 7.6, duration: '1h46', lang: 'FR',
-    imdb: 'tt0963694', tmdb: '13990',
-    poster: `${w500}/6LiB89IXCUBDYANJBGnXmHPF9HC.jpg`,
-    backdrop: `${original}/arKOBkCrsBEGYlJZvTDsHfLuFRX.jpg`,
-    desc: 'Un directeur de La Poste est muté dans le Nord de la France. Il découvre une région et des habitants totalement différents de ce qu\'il imaginait.',
-    youtube: 'f2ybj-EOFG8'
-  },
-  // ── ACTION ──
-  {
-    id: 22, title: 'The Dark Knight', year: 2008, genre: ['action','fantastique'],
-    rating: 9.0, duration: '2h32', lang: 'FR',
-    imdb: 'tt0468569', tmdb: '155',
-    poster: `${w500}/qJ2tW6WMUDux911r6m7haRef0WH.jpg`,
-    backdrop: `${original}/hkBaDkMWbLaf8B1lsLsafQe4nR6.jpg`,
-    desc: 'Batman fait face au Joker, un criminel anarchiste psychopathe qui veut répandre le chaos dans Gotham City. Le chef-d\'œuvre de Christopher Nolan.',
-    youtube: 'EXeTwQWrcwY'
-  },
-  {
-    id: 23, title: 'Mission : Impossible', year: 1996, genre: ['action','aventure'],
-    rating: 7.2, duration: '1h50', lang: 'FR',
-    imdb: 'tt0117060', tmdb: '954',
-    poster: `${w500}/6TdHoFgMBBNFJEbJKcXFpUmLOAI.jpg`,
-    backdrop: `${original}/9E2y5Q7WlCVHBd504lHkKoMFOvf.jpg`,
-    desc: 'L\'agent Ethan Hunt est le seul survivant d\'une mission secrète ayant mal tourné. Il doit découvrir qui a trahi son équipe.',
-    youtube: 'DkX9wpO_nII'
-  },
-  {
-    id: 24, title: 'Top Gun : Maverick', year: 2022, genre: ['action','aventure'],
-    rating: 8.3, duration: '2h11', lang: 'FR',
-    imdb: 'tt1745960', tmdb: '361743',
-    poster: `${w500}/62HCnUTziyWcpDaBO2i1DX17ljH.jpg`,
-    backdrop: `${original}/AkB33BLRqmXBmOatSBz3DhMUVaH.jpg`,
-    desc: 'Maverick, toujours pilote d\'essai, revient pour former une nouvelle génération de diplômés de Top Gun pour une mission de combat impossible.',
-    youtube: 'qSqVVswa420'
-  },
-  // ── PIXAR / DREAMWORKS ──
-  {
-    id: 25, title: 'Coco', year: 2017, genre: ['animation','aventure','famille'],
-    rating: 8.4, duration: '1h45', lang: 'FR',
-    imdb: 'tt2380307', tmdb: '354912',
-    poster: `${w500}/gGEsBPAijhVUFoiNpgZXqRVWJt2.jpg`,
-    backdrop: `${original}/askg3SMvhqEl4OL52YuvdtY40Yb.jpg`,
-    desc: 'Miguel, un garçon passionné de musique, se retrouve dans le Pays des Morts lors de la Fête des Morts et doit retrouver sa famille.',
-    youtube: 'Rvr68u6k5sI'
-  },
-  {
-    id: 26, title: 'Encanto', year: 2021, genre: ['animation','aventure','famille'],
-    rating: 7.2, duration: '1h39', lang: 'FR',
-    imdb: 'tt8820200', tmdb: '568124',
-    poster: `${w500}/4j0PNHkMr5ax3IA8tjtxcmPU3QT.jpg`,
-    backdrop: `${original}/3G1Q5xF40HkUBJXxt2DQgQzKTp5.jpg`,
-    desc: 'La famille Madrigal vit dans une maison magique en Colombie. Mirabel, la seule sans pouvoir magique, découvre que la magie est en danger.',
-    youtube: 'CaimKeDcudo'
-  },
-  {
-    id: 27, title: 'Moi, Moche et Méchant', year: 2010, genre: ['animation','comedie','famille'],
-    rating: 7.7, duration: '1h35', lang: 'FR',
-    imdb: 'tt1323594', tmdb: '20352',
-    poster: `${w500}/9siCXSb3rFRHCNt6UnYNuPBQs4V.jpg`,
-    backdrop: `${original}/bWiTH6f04v4OcNhzlNAjbqKOBSg.jpg`,
-    desc: 'Gru, le plus grand super-vilain du monde, adopte trois petites orphelines qui vont bouleverser sa vie et ses plans diaboliques.',
-    youtube: 'c7RrRN_BHKU'
-  },
-  {
-    id: 28, title: 'Moana / Vaiana', year: 2016, genre: ['animation','aventure','famille'],
-    rating: 7.6, duration: '1h47', lang: 'FR',
-    imdb: 'tt3521164', tmdb: '277834',
-    poster: `${w500}/inVq3FRqcYIRl2la8iZikYYxFNR.jpg`,
-    backdrop: `${original}/lr1lsv5lEoGfVEfym7jJFwO0fEi.jpg`,
-    desc: 'Moana, la fille d\'un chef polynésien, part en voyage pour sauver son peuple avec le demi-dieu Maui. Un film d\'animation Disney époustouflant.',
-    youtube: 'LKFuXETZUsI'
-  },
-  {
-    id: 29, title: 'Ratatouille', year: 2007, genre: ['animation','comedie','famille'],
-    rating: 8.1, duration: '1h51', lang: 'FR',
-    imdb: 'tt0382932', tmdb: '2062',
-    poster: `${w500}/npHNjldbeTHdKKw28bJKs7lzqzj.jpg`,
-    backdrop: `${original}/56v2KjBlU4XaOv9rVYEQypROD7P.jpg`,
-    desc: 'Remy, un rat passionné de cuisine, s\'associe avec un apprenti cuisinier pour prouver que n\'importe qui peut cuisiner. Un chef-d\'œuvre Pixar !',
-    youtube: 'NgsQ8mVkN8w'
-  },
-  {
-    id: 30, title: 'Les Indestructibles', year: 2004, genre: ['animation','action','aventure','famille'],
-    rating: 8.0, duration: '1h55', lang: 'FR',
-    imdb: 'tt0317705', tmdb: '9806',
-    poster: `${w500}/2LqaLgk4Z226KkgPJuiOQ58ShKD.jpg`,
-    backdrop: `${original}/82kJCkwPgEE2SJQK5LRJe7MFV6L.jpg`,
-    desc: 'Une famille de super-héros forcée de vivre incognito est rappelée à l\'action quand un mystérieux ennemi menace le monde.',
-    youtube: 'eZbzbC9285I'
-  },
-  // ── CLASSIQUES ──
-  {
-    id: 31, title: 'Forrest Gump', year: 1994, genre: ['classique'],
-    rating: 8.8, duration: '2h22', lang: 'FR',
-    imdb: 'tt0109830', tmdb: '13,',
-    poster: `${w500}/saHP97rTPS5eLmrLQEcANmKrsFl.jpg`,
-    backdrop: `${original}/3h1JZGDhZ8nzxdgvkxha0qBqi05.jpg`,
-    desc: 'Forrest Gump, un homme simple mais au grand cœur, se retrouve involontairement mêlé aux grands moments de l\'histoire américaine.',
-    youtube: 'bLvqoHBptjg'
-  },
-  {
-    id: 32, title: 'Titanic', year: 1997, genre: ['classique'],
-    rating: 7.9, duration: '3h14', lang: 'FR',
-    imdb: 'tt0120338', tmdb: '597',
-    poster: `${w500}/9xjZS2rlVxm8SFx8kPC3aIGCOYQ.jpg`,
-    backdrop: `${original}/dUKzrSCi1W89Y3gAX6Rv58ATNig.jpg`,
-    desc: 'La romance tragique entre Jack et Rose sur le plus célèbre naufrage de l\'histoire. Le chef-d\'œuvre romantique de James Cameron avec Leonardo DiCaprio.',
-    youtube: '2e-eXJ6HgkQ'
-  },
-  {
-    id: 33, title: 'Matrix', year: 1999, genre: ['classique','action','fantastique'],
-    rating: 8.7, duration: '2h16', lang: 'FR',
-    imdb: 'tt0133093', tmdb: '603',
-    poster: `${w500}/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg`,
-    backdrop: `${original}/ncEsesgOJDNrTUED89hYbA117ys.jpg`,
-    desc: 'Un programmeur informatique découvre que la réalité telle qu\'il la connaît est en fait une simulation informatique créée pour soumettre l\'humanité.',
-    youtube: 'vKQi3bBA1y8'
-  },
+  { id: 1, title: 'Marsupilami', year: 2012, genre: ['animation','comedie','famille'], rating: 5.7, duration: '1h47', lang: 'FR', imdb: 'tt1844613', tmdb: '73467', poster: `${w500}/6caBqJxrSKnFZxvUFLJcRm4J0lC.jpg`, backdrop: `${original}/rOVEhqnMFcKHAeHhy4WLY8hkzaX.jpg`, desc: 'Avec Nicolas et Bruno, deux amis qui se retrouvent dans la jungle africaine à la recherche du trésor du Marsupilami. Une comédie familiale pleine de rebondissements avec l\'emblématique animal à la longue queue !', featured: true, tag: 'POPULAIRE' },
+  { id: 2, title: 'Mario — Le Film', year: 2023, genre: ['animation','aventure','famille'], rating: 7.1, duration: '1h32', lang: 'FR', imdb: 'tt6718170', tmdb: '502356', poster: `${w500}/qNBAXBIQlnOThrVvA6mA2B5ggV6.jpg`, backdrop: `${original}/9n2tJBplPbgR2ca05hS5CKXwP2c.jpg`, desc: 'Mario et Luigi, deux plombiers italiens, sont transportés dans un monde magique. Mario doit traverser des royaumes extraordinaires pour sauver un royaume enchanté de la tyrannie de Bowser.', featured: true },
+  { id: 3, title: 'Shrek', year: 2001, genre: ['animation','comedie','aventure'], rating: 7.9, duration: '1h30', lang: 'FR', imdb: 'tt0126029', tmdb: '808', poster: `${w500}/iB64vpL3dIObXuFCtkZGgGSUqJu.jpg`, backdrop: `${original}/jFo3Oz7pENWG8LZaibXQSTFHHMN.jpg`, desc: 'Un ogre solitaire vivant dans un marais part en mission pour récupérer ses terres. Une épopée hilarante avec l\'Âne le plus bavard de l\'histoire.', featured: true },
+  { id: 4, title: 'Le Roi Lion', year: 1994, genre: ['animation','aventure','famille'], rating: 8.5, duration: '1h28', lang: 'FR', imdb: 'tt0110357', tmdb: '8587', poster: `${w500}/sKCr78MXSLixwmZ8DyJLrpMsd15.jpg`, backdrop: `${original}/wXsQvli6tWqja51pYxXNG1LFIGV.jpg`, desc: 'Simba, un lionceau, doit reprendre le trône de son père après que son oncle Scar l\'ait assassiné. Un chef-d\'œuvre de l\'animation mondiale avec une bande originale légendaire.', featured: true },
+  { id: 5, title: 'Toy Story', year: 1995, genre: ['animation','aventure','comedie'], rating: 8.3, duration: '1h21', lang: 'FR', imdb: 'tt0114709', tmdb: '862', poster: `${w500}/uXDfjJbdP4ijW5hWSBrPu9cdmR9.jpg`, backdrop: `${original}/dji4Fm0gCDVb9DQQMRvAI8YNnTz.jpg`, desc: 'Quand leur propriétaire n\'est pas là, les jouets prennent vie. Woody, le cow-boy, voit sa place menacée par Buzz l\'Éclair, un astronaute futuriste.' },
+  { id: 6, title: 'Aladdin', year: 1992, genre: ['animation','aventure','comedie','famille'], rating: 8.0, duration: '1h30', lang: 'FR', imdb: 'tt0103639', tmdb: '812', poster: `${w500}/iiZZdoQBEYBv6id8su7ImL0oCbD.jpg`, backdrop: `${original}/8BEn6c6MCXuXfgEJbgWfMXx3gT4.jpg`, desc: 'Un jeune voleur des rues découvre une lampe magique avec un génie à l\'intérieur. Classique Disney avec Robin Williams inoubliable !' },
+  { id: 7, title: 'La Belle et la Bête', year: 1991, genre: ['animation','aventure','famille'], rating: 8.0, duration: '1h24', lang: 'FR', imdb: 'tt0101414', tmdb: '10020', poster: `${w500}/tWqifoMy23wSTy0AXtBj38aMZfw.jpg`, backdrop: `${original}/aFd43pyYxMGfMhMXNXlZKa1VeLb.jpg`, desc: 'Belle, une jeune femme courageuse, se retrouve prisonnière d\'un château enchanté habité par une bête. Un conte d\'amour intemporel.' },
+  { id: 8, title: 'Mulan', year: 1998, genre: ['animation','aventure','famille'], rating: 7.6, duration: '1h28', lang: 'FR', imdb: 'tt0120762', tmdb: '10674', poster: `${w500}/pR5bNOqjPaKHaSXQXGsHFuJJmQp.jpg`, backdrop: `${original}/v1pAT0e6iuEBmCBFzMrjUKqgTXi.jpg`, desc: 'Pour sauver l\'honneur de sa famille, Mulan se déguise en homme pour rejoindre l\'armée. Un film d\'animation épique sur le courage et la détermination.' },
+  { id: 9, title: 'Les Gardiens de la Galaxie', year: 2014, genre: ['action','aventure','comedie','fantastique'], rating: 8.0, duration: '2h01', lang: 'FR', imdb: 'tt2015381', tmdb: '118340', poster: `${w500}/r7vmZjiyZw9rpJMQJdXpjgiCOk9.jpg`, backdrop: `${original}/bHarw8xrmQeqf3t8HpuMY7zoK4x.jpg`, desc: 'Peter Quill alias Star-Lord s\'associe à des renégats de l\'espace pour former une équipe de gardiens de l\'univers. Un film Marvel explosif et drôle !', featured: true, tag: 'MARVEL' },
+  { id: 10, title: 'Interstellar', year: 2014, genre: ['fantastique','aventure'], rating: 8.6, duration: '2h49', lang: 'FR', imdb: 'tt0816692', tmdb: '157336', poster: `${w500}/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg`, backdrop: `${original}/pbrkL804hqHBr5ZUUA5VKEGfELO.jpg`, desc: 'Une équipe d\'explorateurs voyage à travers un trou de ver apparu près de Saturne pour assurer la survie de l\'humanité. Christopher Nolan au sommet de son art.' },
+  { id: 11, title: 'Star Wars : Épisode IV', year: 1977, genre: ['aventure','fantastique','action'], rating: 8.6, duration: '2h01', lang: 'FR', imdb: 'tt0076759', tmdb: '11', poster: `${w500}/6FfCtAuVAW8XJjZ7eWeLibRLWTw.jpg`, backdrop: `${original}/AfDMNXo0rRUB3aWK1R6R6LWb1Ue.jpg`, desc: 'Luke Skywalker, un jeune fermier, se joint à un pilote rebelle pour sauver la princesse Leia et la galaxie d\'une organisation impériale malveillante.' },
+  { id: 12, title: 'Avengers : Endgame', year: 2019, genre: ['action','aventure','fantastique'], rating: 8.4, duration: '3h01', lang: 'FR', imdb: 'tt4154796', tmdb: '299534', poster: `${w500}/or06FN3Dka5tukK1e9sl16pB3iy.jpg`, backdrop: `${original}/7RyHsO4yDXtBv1zUU3mTpHeQ0d5.jpg`, desc: 'Après les événements dévastateurs de Infinity War, les Avengers se rassemblent pour annuler les actions de Thanos et restaurer l\'ordre dans l\'univers.' },
+  { id: 13, title: 'Spider-Man: No Way Home', year: 2021, genre: ['action','aventure','fantastique'], rating: 8.2, duration: '2h28', lang: 'FR', imdb: 'tt10872600', tmdb: '634649', poster: `${w500}/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg`, backdrop: `${original}/4OTYefcAlaShn6TGVK33UxLW9R7.jpg`, desc: 'Peter Parker demande à Doctor Strange un sort pour que le monde oublie son identité secrète, ouvrant accidentellement le multivers.' },
+  { id: 14, title: 'Indiana Jones : Les Aventuriers', year: 1981, genre: ['aventure','action'], rating: 8.4, duration: '1h55', lang: 'FR', imdb: 'tt0082971', tmdb: '85', poster: `${w500}/ceG9VzoRAVGwivFU403Wc3AHRys.jpg`, backdrop: `${original}/i9UtEJKVFINULCOJfyFERwMptAk.jpg`, desc: 'Un archéologue aventurier part à la recherche de l\'Arche d\'Alliance contre des agents nazis. Le début d\'une saga légendaire avec Harrison Ford !' },
+  { id: 15, title: 'Jurassic Park', year: 1993, genre: ['aventure','fantastique'], rating: 8.2, duration: '2h07', lang: 'FR', imdb: 'tt0107290', tmdb: '329', poster: `${w500}/oU7Oq2kFAAlGqbU4VoAE36g4hoI.jpg`, backdrop: `${original}/9BBTo63ANSmhC4e6r62OJFuK2GL.jpg`, desc: 'Un milliardaire ouvre un parc à thème avec des dinosaures clonés. Tout se passe bien... jusqu\'à ce que les animaux s\'échappent. Le film culte de Spielberg !' },
+  { id: 16, title: 'Harry Potter à l\'École des Sorciers', year: 2001, genre: ['aventure','fantastique','famille'], rating: 7.6, duration: '2h32', lang: 'FR', imdb: 'tt0241527', tmdb: '671', poster: `${w500}/wuMc08IPKEatf9rnMNXvIDxqP4W.jpg`, backdrop: `${original}/hziiv14OpD73u9gApdqVeAFmwEI.jpg`, desc: 'Harry Potter découvre le jour de ses 11 ans qu\'il est un sorcier. Il rejoint l\'école de magie Poudlard pour y apprendre les arts magiques.' },
+  { id: 17, title: 'Le Seigneur des Anneaux', year: 2001, genre: ['aventure','fantastique'], rating: 8.8, duration: '3h28', lang: 'FR', imdb: 'tt0120737', tmdb: '120', poster: `${w500}/6oom5QYQ2yQTMJIbnvbkBL9cHo6.jpg`, backdrop: `${original}/pIkRyD18kl4FhoCNQuWxWu5cBLM.jpg`, desc: 'Frodon Sacquet hérite d\'un anneau mystérieux. Une communauté de neuf membres se forme pour le détruire et ainsi sauver la Terre du Milieu.' },
+  { id: 18, title: 'Retour vers le Futur', year: 1985, genre: ['aventure','comedie','fantastique'], rating: 8.5, duration: '1h56', lang: 'FR', imdb: 'tt0088763', tmdb: '105', poster: `${w500}/fNOH9f1aA7XRTzl1sAOx9iF553Q.jpg`, backdrop: `${original}/8h8dMPCiDJFQjmICF7cUVWBMvb1.jpg`, desc: 'Un adolescent voyage accidentellement 30 ans dans le passé dans la DeLorean du Dr. Emmett Brown et doit s\'assurer que ses parents tombent amoureux.' },
+  { id: 19, title: 'Les Visiteurs', year: 1993, genre: ['comedie','fantastique'], rating: 7.0, duration: '1h47', lang: 'FR', imdb: 'tt0108500', tmdb: '13688', poster: `${w500}/q0PNFGKs2JkF5ZLRfKCOHHr3JjT.jpg`, backdrop: `${original}/5x6NRXxeTqn49KMXmjS0P5v9uqE.jpg`, desc: 'Un chevalier du Moyen-Âge et son valet débarquent accidentellement dans la France contemporaine grâce à un sort raté. La comédie française culte !', tag: 'CULTE' },
+  { id: 20, title: 'Le Fabuleux Destin d\'Amélie Poulain', year: 2001, genre: ['comedie'], rating: 8.3, duration: '2h02', lang: 'FR', imdb: 'tt0211915', tmdb: '194', poster: `${w500}/hmlVMdAHqJd2dNkMdjIGGmRaFm8.jpg`, backdrop: `${original}/zT3WQ5rJwK9bFOgFq7PaAK4bQTu.jpg`, desc: 'Amélie, une jeune serveuse parisienne, décide de transformer la vie des autres personnes autour d\'elle. Un film poétique et enchanteur de Jean-Pierre Jeunet.' },
+  { id: 21, title: 'Bienvenue chez les Ch\'tis', year: 2008, genre: ['comedie'], rating: 7.6, duration: '1h46', lang: 'FR', imdb: 'tt0963694', tmdb: '13990', poster: `${w500}/6LiB89IXCUBDYANJBGnXmHPF9HC.jpg`, backdrop: `${original}/arKOBkCrsBEGYlJZvTDsHfLuFRX.jpg`, desc: 'Un directeur de La Poste est muté dans le Nord de la France. Il découvre une région et des habitants totalement différents de ce qu\'il imaginait.' },
+  { id: 22, title: 'The Dark Knight', year: 2008, genre: ['action','fantastique'], rating: 9.0, duration: '2h32', lang: 'FR', imdb: 'tt0468569', tmdb: '155', poster: `${w500}/qJ2tW6WMUDux911r6m7haRef0WH.jpg`, backdrop: `${original}/hkBaDkMWbLaf8B1lsLsafQe4nR6.jpg`, desc: 'Batman fait face au Joker, un criminel anarchiste psychopathe qui veut répandre le chaos dans Gotham City. Le chef-d\'œuvre de Christopher Nolan.' },
+  { id: 23, title: 'Mission : Impossible', year: 1996, genre: ['action','aventure'], rating: 7.2, duration: '1h50', lang: 'FR', imdb: 'tt0117060', tmdb: '954', poster: `${w500}/6TdHoFgMBBNFJEbJKcXFpUmLOAI.jpg`, backdrop: `${original}/9E2y5Q7WlCVHBd504lHkKoMFOvf.jpg`, desc: 'L\'agent Ethan Hunt est le seul survivant d\'une mission secrète ayant mal tourné. Il doit découvrir qui a trahi son équipe.' },
+  { id: 24, title: 'Top Gun : Maverick', year: 2022, genre: ['action','aventure'], rating: 8.3, duration: '2h11', lang: 'FR', imdb: 'tt1745960', tmdb: '361743', poster: `${w500}/62HCnUTziyWcpDaBO2i1DX17ljH.jpg`, backdrop: `${original}/AkB33BLRqmXBmOatSBz3DhMUVaH.jpg`, desc: 'Maverick, toujours pilote d\'essai, revient pour former une nouvelle génération de diplômés de Top Gun pour une mission de combat impossible.' },
+  { id: 25, title: 'Coco', year: 2017, genre: ['animation','aventure','famille'], rating: 8.4, duration: '1h45', lang: 'FR', imdb: 'tt2380307', tmdb: '354912', poster: `${w500}/gGEsBPAijhVUFoiNpgZXqRVWJt2.jpg`, backdrop: `${original}/askg3SMvhqEl4OL52YuvdtY40Yb.jpg`, desc: 'Miguel, un garçon passionné de musique, se retrouve dans le Pays des Morts lors de la Fête des Morts et doit retrouver sa famille.' },
+  { id: 26, title: 'Encanto', year: 2021, genre: ['animation','aventure','famille'], rating: 7.2, duration: '1h39', lang: 'FR', imdb: 'tt8820200', tmdb: '568124', poster: `${w500}/4j0PNHkMr5ax3IA8tjtxcmPU3QT.jpg`, backdrop: `${original}/3G1Q5xF40HkUBJXxt2DQgQzKTp5.jpg`, desc: 'La famille Madrigal vit dans une maison magique en Colombie. Mirabel, la seule sans pouvoir magique, découvre que la magie est en danger.' },
+  { id: 27, title: 'Moi, Moche et Méchant', year: 2010, genre: ['animation','comedie','famille'], rating: 7.7, duration: '1h35', lang: 'FR', imdb: 'tt1323594', tmdb: '20352', poster: `${w500}/9siCXSb3rFRHCNt6UnYNuPBQs4V.jpg`, backdrop: `${original}/bWiTH6f04v4OcNhzlNAjbqKOBSg.jpg`, desc: 'Gru, le plus grand super-vilain du monde, adopte trois petites orphelines qui vont bouleverser sa vie et ses plans diaboliques.' },
+  { id: 28, title: 'Vaiana', year: 2016, genre: ['animation','aventure','famille'], rating: 7.6, duration: '1h47', lang: 'FR', imdb: 'tt3521164', tmdb: '277834', poster: `${w500}/inVq3FRqcYIRl2la8iZikYYxFNR.jpg`, backdrop: `${original}/lr1lsv5lEoGfVEfym7jJFwO0fEi.jpg`, desc: 'Moana, la fille d\'un chef polynésien, part en voyage pour sauver son peuple avec le demi-dieu Maui. Un film d\'animation Disney époustouflant.' },
+  { id: 29, title: 'Ratatouille', year: 2007, genre: ['animation','comedie','famille'], rating: 8.1, duration: '1h51', lang: 'FR', imdb: 'tt0382932', tmdb: '2062', poster: `${w500}/npHNjldbeTHdKKw28bJKs7lzqzj.jpg`, backdrop: `${original}/56v2KjBlU4XaOv9rVYEQypROD7P.jpg`, desc: 'Remy, un rat passionné de cuisine, s\'associe avec un apprenti cuisinier pour prouver que n\'importe qui peut cuisiner. Un chef-d\'œuvre Pixar !' },
+  { id: 30, title: 'Les Indestructibles', year: 2004, genre: ['animation','action','aventure','famille'], rating: 8.0, duration: '1h55', lang: 'FR', imdb: 'tt0317705', tmdb: '9806', poster: `${w500}/2LqaLgk4Z226KkgPJuiOQ58ShKD.jpg`, backdrop: `${original}/82kJCkwPgEE2SJQK5LRJe7MFV6L.jpg`, desc: 'Une famille de super-héros forcée de vivre incognito est rappelée à l\'action quand un mystérieux ennemi menace le monde.' },
+  { id: 31, title: 'Forrest Gump', year: 1994, genre: ['classique'], rating: 8.8, duration: '2h22', lang: 'FR', imdb: 'tt0109830', tmdb: '13', poster: `${w500}/saHP97rTPS5eLmrLQEcANmKrsFl.jpg`, backdrop: `${original}/3h1JZGDhZ8nzxdgvkxha0qBqi05.jpg`, desc: 'Forrest Gump, un homme simple mais au grand cœur, se retrouve involontairement mêlé aux grands moments de l\'histoire américaine.' },
+  { id: 32, title: 'Titanic', year: 1997, genre: ['classique'], rating: 7.9, duration: '3h14', lang: 'FR', imdb: 'tt0120338', tmdb: '597', poster: `${w500}/9xjZS2rlVxm8SFx8kPC3aIGCOYQ.jpg`, backdrop: `${original}/dUKzrSCi1W89Y3gAX6Rv58ATNig.jpg`, desc: 'La romance tragique entre Jack et Rose sur le plus célèbre naufrage de l\'histoire. Le chef-d\'œuvre romantique de James Cameron avec Leonardo DiCaprio.' },
+  { id: 33, title: 'Matrix', year: 1999, genre: ['classique','action','fantastique'], rating: 8.7, duration: '2h16', lang: 'FR', imdb: 'tt0133093', tmdb: '603', poster: `${w500}/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg`, backdrop: `${original}/ncEsesgOJDNrTUED89hYbA117ys.jpg`, desc: 'Un programmeur informatique découvre que la réalité telle qu\'il la connaît est en fait une simulation informatique créée pour soumettre l\'humanité.' },
 ];
 
-// ══════════════════════════════════════════════════════════════
-// APP STATE
-// ══════════════════════════════════════════════════════════════
-let currentHeroIdx = 0;
-let heroMovies = [];
-let heroInterval = null;
-let currentMovie = null;
-let activeCategory = 'all';
+// ══ STATE ══
+let currentHeroIdx = 0, heroMovies = [], heroInterval = null, currentMovie = null, activeCategory = 'all';
 
-// ══════════════════════════════════════════════════════════════
-// HERO
-// ══════════════════════════════════════════════════════════════
+// ══ CUSTOM SOURCES (localStorage) ══
+function getSavedSources() {
+  try { return JSON.parse(localStorage.getItem('cs_sources') || '[]'); } catch { return []; }
+}
+function saveSources(arr) {
+  try { localStorage.setItem('cs_sources', JSON.stringify(arr)); } catch {}
+}
+function deleteSavedSource(idx) {
+  const arr = getSavedSources();
+  arr.splice(idx, 1);
+  saveSources(arr);
+  renderSavedSources();
+  if (currentMovie) buildSourceTabs(getEmbedSources(currentMovie));
+}
+
+let pendingCustomUrl = '';
+let pendingCustomName = '';
+
+function openCustomSource() {
+  document.getElementById('custom-source-modal').classList.add('open');
+  document.getElementById('csb-url-input').value = '';
+  document.getElementById('csb-name-input').value = '';
+  renderSavedSources();
+}
+
+function openCustomSourceForCurrent() {
+  openCustomSource();
+}
+
+function closeCustomSource() {
+  document.getElementById('custom-source-modal').classList.remove('open');
+}
+
+function selectPreset(url) {
+  document.getElementById('csb-url-input').value = url;
+  document.querySelectorAll('.csb-preset').forEach(p => p.classList.remove('selected'));
+  event.target.classList.add('selected');
+}
+
+function saveAndUseSource() {
+  const url = document.getElementById('csb-url-input').value.trim();
+  const name = document.getElementById('csb-name-input').value.trim() || 'Source perso';
+  if (!url) { showToast('❌ Entre une URL valide', 'error'); return; }
+
+  // Sauvegarder
+  const arr = getSavedSources();
+  arr.unshift({ url, name, added: Date.now() });
+  saveSources(arr.slice(0, 10)); // max 10
+
+  closeCustomSource();
+  showToast(`✅ Source "${name}" ajoutée !`, 'success');
+
+  // Si un film est ouvert, recharger ses sources et lancer
+  if (currentMovie) {
+    const sources = getEmbedSources(currentMovie);
+    buildSourceTabs(sources);
+    // Charger la nouvelle source perso (dernière ajoutée = fin du tableau)
+    const newIdx = sources.length - getSavedSources().length;
+    setTimeout(() => loadSourceByUrl(url, name), 300);
+  }
+}
+
+function renderSavedSources() {
+  const arr = getSavedSources();
+  const section = document.getElementById('saved-sources-section');
+  const list = document.getElementById('saved-sources-list');
+  if (arr.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  list.innerHTML = '';
+  arr.forEach((s, i) => {
+    const item = document.createElement('div');
+    item.className = 'saved-source-item';
+    item.innerHTML = `
+      <span class="ssi-url">${s.name} — ${s.url}</span>
+      <button class="ssi-use" onclick="useDirectSource('${s.url.replace(/'/g,"\\'")}','${s.name.replace(/'/g,"\\'")}')">▶ Utiliser</button>
+      <button class="ssi-del" onclick="deleteSavedSource(${i})" title="Supprimer">🗑</button>`;
+    list.appendChild(item);
+  });
+}
+
+function useDirectSource(url, name) {
+  closeCustomSource();
+  if (currentMovie) {
+    loadSourceByUrl(url, name);
+  } else {
+    showToast('Ouvre d\'abord un film', 'error');
+  }
+}
+
+function loadSourceByUrl(url, name) {
+  const frame = document.getElementById('player-frame');
+  const loading = document.getElementById('iframe-loading');
+  loading.classList.remove('hidden');
+  const existing = frame.querySelector('iframe');
+  if (existing) existing.remove();
+  const msg = document.getElementById('source-msg-text');
+  msg.textContent = `Source: ${name} — Chargement...`;
+  const iframe = document.createElement('iframe');
+  iframe.src = url;
+  iframe.allowFullscreen = true;
+  iframe.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+  iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#000';
+  iframe.onload = () => { loading.classList.add('hidden'); msg.textContent = `Source active: ${name} ✓`; };
+  frame.appendChild(iframe);
+  showToast(`▶ Lecture: ${name}`, 'success');
+}
+
+// ══ HERO ══
 function initHero() {
   heroMovies = MOVIES.filter(m => m.featured);
-  renderHero(0);
-  buildHeroDots();
-  heroInterval = setInterval(() => {
-    currentHeroIdx = (currentHeroIdx + 1) % heroMovies.length;
-    renderHero(currentHeroIdx);
-    updateDots();
-  }, 7000);
+  renderHero(0); buildHeroDots();
+  heroInterval = setInterval(() => { currentHeroIdx = (currentHeroIdx+1)%heroMovies.length; renderHero(currentHeroIdx); updateDots(); }, 7000);
 }
 
 function renderHero(idx) {
-  const m = heroMovies[idx];
-  if (!m) return;
-
-  const bg = document.getElementById('hero-bg');
-  const content = document.getElementById('hero-content');
-
-  // Background
-  bg.style.backgroundImage = m.backdrop
-    ? `url('${m.backdrop}')`
-    : `url('${m.poster}')`;
-
-  // Content
-  content.innerHTML = `
-    <div class="hero-badge">
-      ${m.tag || '🎬 À VOIR'}&nbsp;&nbsp;${m.year}
-    </div>
+  const m = heroMovies[idx]; if (!m) return;
+  document.getElementById('hero-bg').style.backgroundImage = `url('${m.backdrop || m.poster}')`;
+  document.getElementById('hero-content').innerHTML = `
+    <div class="hero-badge">${m.tag||'🎬 À VOIR'}&nbsp;&nbsp;${m.year}</div>
     <h1 class="hero-title">${m.title}</h1>
     <div class="hero-meta">
-      <span class="rating">★ ${m.rating}</span>
-      <span class="dot"></span>
-      <span>${m.duration}</span>
-      <span class="dot"></span>
-      <span>${m.genre.slice(0,2).join(', ')}</span>
-      <span class="dot"></span>
+      <span class="rating">★ ${m.rating}</span><span class="dot"></span>
+      <span>${m.duration}</span><span class="dot"></span>
+      <span>${m.genre.slice(0,2).join(', ')}</span><span class="dot"></span>
       <span>${m.lang}</span>
     </div>
     <p class="hero-desc">${m.desc}</p>
     <div class="hero-actions">
       <button class="btn-play" onclick="openPlayer(${m.id})">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-        Regarder maintenant
+        Regarder en entier
       </button>
       <button class="btn-info" onclick="openModal(${m.id})">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -1307,450 +855,241 @@ function renderHero(idx) {
 }
 
 function buildHeroDots() {
-  const c = document.getElementById('hero-dots');
-  c.innerHTML = '';
-  heroMovies.forEach((m, i) => {
+  const c = document.getElementById('hero-dots'); c.innerHTML = '';
+  heroMovies.forEach((m,i) => {
     const btn = document.createElement('button');
-    btn.className = 'hero-dot' + (i === 0 ? ' active' : '');
-    btn.onclick = () => {
-      clearInterval(heroInterval);
-      currentHeroIdx = i;
-      renderHero(i);
-      updateDots();
-    };
+    btn.className = 'hero-dot'+(i===0?' active':'');
+    btn.onclick = () => { clearInterval(heroInterval); currentHeroIdx=i; renderHero(i); updateDots(); };
     c.appendChild(btn);
   });
 }
+function updateDots() { document.querySelectorAll('.hero-dot').forEach((d,i)=>d.classList.toggle('active',i===currentHeroIdx)); }
 
-function updateDots() {
-  document.querySelectorAll('.hero-dot').forEach((d, i) => {
-    d.classList.toggle('active', i === currentHeroIdx);
-  });
-}
-
-// ══════════════════════════════════════════════════════════════
-// CATEGORIES & SECTIONS
-// ══════════════════════════════════════════════════════════════
+// ══ CATEGORIES ══
 const CATEGORIES = [
-  { id: 'all', label: '🎬 Tout' },
-  { id: 'animation', label: '🎨 Animation' },
-  { id: 'action', label: '💥 Action' },
-  { id: 'aventure', label: '🗺️ Aventure' },
-  { id: 'comedie', label: '😂 Comédie' },
-  { id: 'fantastique', label: '🚀 Fantastique' },
-  { id: 'famille', label: '👨‍👩‍👧 Famille' },
-  { id: 'classique', label: '⭐ Classiques' },
+  {id:'all',label:'🎬 Tout'},{id:'animation',label:'🎨 Animation'},{id:'action',label:'💥 Action'},
+  {id:'aventure',label:'🗺️ Aventure'},{id:'comedie',label:'😂 Comédie'},{id:'fantastique',label:'🚀 Fantastique'},
+  {id:'famille',label:'👨‍👩‍👧 Famille'},{id:'classique',label:'⭐ Classiques'},
 ];
 
 function buildCategoryPills() {
-  const c = document.getElementById('cat-pills');
-  c.innerHTML = '';
+  const c = document.getElementById('cat-pills'); c.innerHTML = '';
   CATEGORIES.forEach(cat => {
     const btn = document.createElement('button');
-    btn.className = 'cat-pill' + (cat.id === activeCategory ? ' active' : '');
-    btn.textContent = cat.label;
-    btn.onclick = () => filterCategory(cat.id, btn);
+    btn.className='cat-pill'+(cat.id===activeCategory?' active':'');
+    btn.textContent=cat.label;
+    btn.onclick=()=>filterCategory(cat.id,btn);
     c.appendChild(btn);
   });
 }
 
-function filterCategory(catId, btn) {
-  activeCategory = catId;
-  document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+function filterCategory(catId,btn) {
+  activeCategory=catId;
+  document.querySelectorAll('.cat-pill').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+  if(btn) btn.classList.add('active');
   buildSections();
 }
 
 const SECTIONS_CONFIG = [
-  { title: 'À NE PAS MANQUER', highlight: 'CETTE SEMAINE', filter: m => m.featured, type: 'row' },
-  { title: 'ANIMATION', highlight: '& FAMILLE', filter: m => m.genre.includes('animation'), type: 'row' },
-  { title: 'MEILLEURES', highlight: 'NOTES', filter: m => m.rating >= 8.0, sort: (a,b) => b.rating - a.rating, type: 'row' },
-  { title: 'ACTION &', highlight: 'AVENTURE', filter: m => m.genre.includes('action') || m.genre.includes('aventure'), type: 'row' },
-  { title: 'CLASSIQUES', highlight: 'INTEMPORELS', filter: m => m.genre.includes('classique') || m.year < 2000, type: 'row' },
-  { title: 'COMEDIE', highlight: 'FRANÇAISE', filter: m => m.genre.includes('comedie') && m.lang === 'FR', type: 'row' },
+  {title:'À NE PAS MANQUER',highlight:'CETTE SEMAINE',filter:m=>m.featured,type:'row'},
+  {title:'ANIMATION',highlight:'& FAMILLE',filter:m=>m.genre.includes('animation'),type:'row'},
+  {title:'MEILLEURES',highlight:'NOTES',filter:m=>m.rating>=8.0,sort:(a,b)=>b.rating-a.rating,type:'row'},
+  {title:'ACTION &',highlight:'AVENTURE',filter:m=>m.genre.includes('action')||m.genre.includes('aventure'),type:'row'},
+  {title:'CLASSIQUES',highlight:'INTEMPORELS',filter:m=>m.genre.includes('classique')||m.year<2000,type:'row'},
+  {title:'COMEDIE',highlight:'FRANÇAISE',filter:m=>m.genre.includes('comedie')&&m.lang==='FR',type:'row'},
 ];
 
 function buildSections() {
-  const container = document.getElementById('sections-container');
-  container.innerHTML = '';
-
-  let sectionsToShow = SECTIONS_CONFIG;
-  if (activeCategory !== 'all') {
-    sectionsToShow = [{
-      title: CATEGORIES.find(c => c.id === activeCategory)?.label || activeCategory,
-      highlight: '',
-      filter: m => m.genre.includes(activeCategory),
-      type: 'grid'
-    }];
+  const container=document.getElementById('sections-container'); container.innerHTML='';
+  let sectionsToShow=SECTIONS_CONFIG;
+  if(activeCategory!=='all') {
+    sectionsToShow=[{title:CATEGORIES.find(c=>c.id===activeCategory)?.label||activeCategory,highlight:'',filter:m=>m.genre.includes(activeCategory),type:'grid'}];
   }
-
-  sectionsToShow.forEach(sec => {
-    let movies = MOVIES.filter(sec.filter);
-    if (sec.sort) movies = movies.sort(sec.sort);
-    if (movies.length === 0) return;
-
-    const section = document.createElement('div');
-    section.innerHTML = `
-      <div class="sec-header">
-        <h2 class="sec-title">${sec.title} <span>${sec.highlight}</span></h2>
-        <button class="see-all" onclick="">Tout voir ›</button>
-      </div>`;
-
-    if (sec.type === 'grid') {
-      const grid = document.createElement('div');
-      grid.className = 'movie-grid';
-      movies.forEach(m => grid.appendChild(buildMovieCard(m)));
-      section.appendChild(grid);
-    } else {
-      const row = document.createElement('div');
-      row.className = 'movie-row';
-      movies.forEach(m => row.appendChild(buildMovieCard(m)));
-      section.appendChild(row);
-    }
-
+  sectionsToShow.forEach(sec=>{
+    let movies=MOVIES.filter(sec.filter);
+    if(sec.sort) movies=movies.sort(sec.sort);
+    if(movies.length===0) return;
+    const section=document.createElement('div');
+    section.innerHTML=`<div class="sec-header"><h2 class="sec-title">${sec.title} <span>${sec.highlight}</span></h2><button class="see-all">Tout voir ›</button></div>`;
+    const container2=document.createElement('div');
+    container2.className=sec.type==='grid'?'movie-grid':'movie-row';
+    movies.forEach(m=>container2.appendChild(buildMovieCard(m)));
+    section.appendChild(container2);
     container.appendChild(section);
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-// MOVIE CARD
-// ══════════════════════════════════════════════════════════════
 function buildMovieCard(m) {
-  const card = document.createElement('div');
-  card.className = 'movie-card';
-  card.onclick = () => openPlayer(m.id);
-
-  const tagHTML = m.tag ? `<div class="card-tag">${m.tag}</div>` : '';
-  const qualityBadge = m.rating >= 8 ? 'q-4k' : m.rating >= 7 ? 'q-1080' : 'q-720';
-  const qualityLabel = m.rating >= 8 ? '4K' : m.rating >= 7 ? '1080' : '720p';
-
-  card.innerHTML = `
+  const card=document.createElement('div'); card.className='movie-card';
+  card.onclick=()=>openPlayer(m.id);
+  const tagHTML=m.tag?`<div class="card-tag">${m.tag}</div>`:'';
+  const qc=m.rating>=8?'q-4k':m.rating>=7?'q-1080':'q-720';
+  const ql=m.rating>=8?'4K':m.rating>=7?'1080p':'720p';
+  card.innerHTML=`
     <div style="position:relative">
-      <img class="card-poster" src="${m.poster}"
-        alt="${m.title}"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
-        loading="lazy">
-      <div class="card-poster-fallback" style="display:none">
-        <div class="fallback-icon">🎬</div>
-        <div>${m.title}</div>
-      </div>
+      <img class="card-poster" src="${m.poster}" alt="${m.title}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" loading="lazy">
+      <div class="card-poster-fallback" style="display:none"><div class="fallback-icon">🎬</div><div>${m.title}</div></div>
       ${tagHTML}
       <div class="card-rating">★ ${m.rating}</div>
       <div class="card-overlay">
-        <button class="card-play-btn" onclick="event.stopPropagation();openPlayer(${m.id})">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="black"><polygon points="5,3 19,12 5,21"/></svg>
-        </button>
+        <button class="card-play-btn" onclick="event.stopPropagation();openPlayer(${m.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="black"><polygon points="5,3 19,12 5,21"/></svg></button>
         <div class="card-overlay-title">${m.title}</div>
-        <div class="card-overlay-meta">${m.duration} · ${m.year} · <span class="quality-badge ${qualityBadge}">${qualityLabel}</span></div>
+        <div class="card-overlay-meta">${m.duration} · ${m.year} · <span class="quality-badge ${qc}">${ql}</span></div>
       </div>
     </div>
-    <div class="card-info">
-      <div class="card-title">${m.title}</div>
-      <div class="card-meta">${m.year} · ${m.genre[0]}</div>
-    </div>`;
-
+    <div class="card-info"><div class="card-title">${m.title}</div><div class="card-meta">${m.year} · ${m.genre[0]}</div></div>`;
   return card;
 }
 
-// ══════════════════════════════════════════════════════════════
-// PLAYER + MODAL
-// ══════════════════════════════════════════════════════════════
+// ══ PLAYER ══
 function openPlayer(movieId) {
-  const m = MOVIES.find(x => x.id === movieId);
-  if (!m) return;
-  currentMovie = m;
-
-  const overlay = document.getElementById('modal-overlay');
-  overlay.classList.add('open');
-  document.body.style.overflow = 'hidden';
-
-  // Title bar
-  document.getElementById('player-title-bar').textContent = `${m.title} (${m.year})`;
-
-  // Fill modal info
-  document.getElementById('modal-title').textContent = m.title;
-  document.getElementById('modal-poster').src = m.poster;
-  document.getElementById('modal-poster').onerror = function() { this.style.display = 'none'; };
-  document.getElementById('modal-desc').textContent = m.desc;
-
-  // Meta
-  const meta = document.getElementById('modal-meta');
-  meta.innerHTML = `
+  const m=MOVIES.find(x=>x.id===movieId); if(!m) return;
+  currentMovie=m;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  document.getElementById('player-title-bar').textContent=`${m.title} (${m.year})`;
+  document.getElementById('modal-title').textContent=m.title;
+  const poster=document.getElementById('modal-poster'); poster.src=m.poster; poster.onerror=()=>poster.style.display='none';
+  document.getElementById('modal-desc').textContent=m.desc;
+  document.getElementById('modal-meta').innerHTML=`
     <span class="rating">★ ${m.rating}/10</span>
     <span class="dot" style="width:4px;height:4px;background:var(--muted);border-radius:50%;display:inline-block"></span>
-    <span>${m.year}</span>
-    <span class="dot" style="width:4px;height:4px;background:var(--muted);border-radius:50%;display:inline-block"></span>
-    <span>${m.duration}</span>
-    <span class="badge badge-hd">HD</span>
-    ${m.genre.map(g => `<span class="badge badge-genre">${g}</span>`).join('')}`;
-
-  // Actions
-  document.getElementById('modal-actions').innerHTML = `
+    <span>${m.year}</span><span class="dot" style="width:4px;height:4px;background:var(--muted);border-radius:50%;display:inline-block"></span>
+    <span>${m.duration}</span><span class="badge badge-hd">HD</span>
+    ${m.genre.map(g=>`<span class="badge badge-genre">${g}</span>`).join('')}`;
+  document.getElementById('modal-actions').innerHTML=`
     <button class="modal-btn modal-btn-primary" onclick="loadSource(0)">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-      Lancer la lecture
+      Regarder en entier
     </button>
-    <button class="modal-btn modal-btn-secondary">+ Ma liste</button>
+    <button class="modal-btn modal-btn-secondary" onclick="openCustomSourceForCurrent()">🔗 Ma source</button>
     <button class="modal-btn modal-btn-secondary" onclick="shareMovie(${m.id})">Partager</button>`;
-
-  // Build sources
-  const sources = getEmbedSources(m);
+  const sources=getEmbedSources(m);
   buildSourceTabs(sources);
-
-  // Sources list tab
   buildSourcesList(m);
-
-  // Load player frame (clear first)
   clearPlayer();
-
-  // Auto-load first source
-  setTimeout(() => loadSource(0), 200);
+  setTimeout(()=>loadSource(0),200);
 }
 
+function openModal(movieId) { openPlayer(movieId); }
+
 function buildSourceTabs(sources) {
-  const tabs = document.getElementById('source-tabs');
-  tabs.innerHTML = '';
-  sources.forEach((s, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'source-tab' + (s.hd ? ' hd' : '') + (i === 0 ? ' active' : '');
-    btn.textContent = s.label;
-    btn.onclick = () => loadSourceFromTab(i, btn);
+  const tabs=document.getElementById('source-tabs'); tabs.innerHTML='';
+  sources.forEach((s,i)=>{
+    const btn=document.createElement('button');
+    btn.className='source-tab'+(s.hd?' hd':'')+(i===0?' active':'')+(s.custom?' custom':'');
+    btn.textContent=s.label;
+    if(s.custom) btn.style.borderColor='rgba(245,200,66,0.4)';
+    btn.onclick=()=>loadSourceFromTab(i,btn);
     tabs.appendChild(btn);
   });
-  return sources;
 }
 
 function buildSourcesList(m) {
-  const list = document.getElementById('sources-list');
-  const sources = getEmbedSources(m);
-  list.innerHTML = `
-    <p style="font-size:13px;color:var(--muted);margin-bottom:8px">
-      💡 Si une source ne fonctionne pas, essaie la suivante. Les sources utilisent des lecteurs embarqués publics.
-    </p>`;
-  sources.forEach((s, i) => {
-    const item = document.createElement('div');
-    item.className = 'torrent-item';
-    item.innerHTML = `
-      <span class="ti-quality">${s.quality}</span>
+  const list=document.getElementById('sources-list');
+  const sources=getEmbedSources(m);
+  list.innerHTML='';
+  sources.forEach((s,i)=>{
+    const item=document.createElement('div');
+    item.className='torrent-item';
+    item.style.cssText=s.custom?'border-color:rgba(245,200,66,0.3)':'';
+    item.innerHTML=`
+      <span class="ti-quality" style="${s.custom?'background:rgba(245,200,66,0.2);color:var(--gold)':''}">${s.quality}</span>
       <span class="ti-name">${s.label} — ${m.title} (${m.year})</span>
       <span class="ti-seeds">● LIVE</span>`;
-    item.onclick = () => {
-      closeModalTab();
-      switchModalTab('info', document.querySelector('.modal-tab'));
-      loadSourceFromTab(i);
-    };
+    item.onclick=()=>{ switchModalTab('info',document.querySelector('.modal-tab')); loadSourceFromTab(i); };
     list.appendChild(item);
   });
 }
 
-let currentSources = [];
-
 function loadSource(idx) {
-  if (!currentMovie) return;
-  currentSources = getEmbedSources(currentMovie);
+  if(!currentMovie) return;
   loadSourceFromTab(idx);
 }
 
 function loadSourceFromTab(idx, clickedBtn) {
-  currentSources = getEmbedSources(currentMovie);
-  const source = currentSources[idx];
-  if (!source) return;
-
-  // Update active tab
-  document.querySelectorAll('.source-tab').forEach((t, i) => {
-    t.classList.toggle('active', i === idx);
-  });
-
-  // Show loading
-  const frame = document.getElementById('player-frame');
-  const loading = document.getElementById('iframe-loading');
+  if(!currentMovie) return;
+  const sources=getEmbedSources(currentMovie);
+  const source=sources[idx]; if(!source) return;
+  document.querySelectorAll('.source-tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+  const frame=document.getElementById('player-frame');
+  const loading=document.getElementById('iframe-loading');
   loading.classList.remove('hidden');
-
-  // Clear old iframe
-  const existing = frame.querySelector('iframe');
-  if (existing) existing.remove();
-
-  // Source message
-  const msg = document.getElementById('source-msg-text');
-  msg.textContent = `Source: ${source.label} (${source.quality}) — Chargement...`;
-
-  // Create iframe
-  const iframe = document.createElement('iframe');
-  iframe.src = source.url;
-  iframe.allowFullscreen = true;
-  iframe.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
-  iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;background:#000';
-
-  iframe.onload = () => {
-    loading.classList.add('hidden');
-    msg.textContent = `Source active: ${source.label} (${source.quality}) ✓`;
-  };
-  iframe.onerror = () => {
-    loading.classList.add('hidden');
-    msg.textContent = `Source non disponible — essaie une autre source ci-dessous`;
-  };
-
+  const existing=frame.querySelector('iframe'); if(existing) existing.remove();
+  const msg=document.getElementById('source-msg-text');
+  msg.textContent=`Source: ${source.label} (${source.quality}) — Chargement...`;
+  const iframe=document.createElement('iframe');
+  iframe.src=source.url; iframe.allowFullscreen=true;
+  iframe.allow='autoplay; fullscreen; encrypted-media; picture-in-picture';
+  iframe.style.cssText='width:100%;height:100%;border:none;display:block;background:#000';
+  iframe.onload=()=>{ loading.classList.add('hidden'); msg.textContent=`Source active: ${source.label} ✓`; };
+  iframe.onerror=()=>{ loading.classList.add('hidden'); msg.textContent='Source non disponible — essaie une autre source'; };
   frame.appendChild(iframe);
-  showToast(`▶ Lecture: ${source.label}`, 'success');
+  showToast(`▶ ${source.label}`, 'success');
 }
 
 function clearPlayer() {
-  const frame = document.getElementById('player-frame');
-  const existing = frame.querySelector('iframe');
-  if (existing) existing.remove();
-  const loading = document.getElementById('iframe-loading');
-  loading.classList.remove('hidden');
+  const frame=document.getElementById('player-frame');
+  const ex=frame.querySelector('iframe'); if(ex) ex.remove();
+  document.getElementById('iframe-loading').classList.remove('hidden');
 }
 
 function closeModal() {
-  const overlay = document.getElementById('modal-overlay');
-  overlay.classList.remove('open');
-  document.body.style.overflow = '';
-  clearPlayer();
-  currentMovie = null;
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.body.style.overflow='';
+  clearPlayer(); currentMovie=null;
 }
 
 function toggleFullscreen() {
-  const container = document.getElementById('player-container');
-  if (!document.fullscreenElement) {
-    container.requestFullscreen().catch(() => {});
-    container.classList.add('fullscreen-player');
-  } else {
-    document.exitFullscreen();
-    container.classList.remove('fullscreen-player');
-  }
+  const c=document.getElementById('player-container');
+  if(!document.fullscreenElement) { c.requestFullscreen().catch(()=>{}); c.classList.add('fullscreen-player'); }
+  else { document.exitFullscreen(); c.classList.remove('fullscreen-player'); }
 }
 
-function switchModalTab(tab, btn) {
-  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  document.getElementById('modal-tab-info').style.display = tab === 'info' ? '' : 'none';
-  document.getElementById('modal-tab-sources').style.display = tab === 'sources' ? '' : 'none';
+function switchModalTab(tab,btn) {
+  document.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('modal-tab-info').style.display=tab==='info'?'':'none';
+  document.getElementById('modal-tab-sources').style.display=tab==='sources'?'':'none';
 }
 
-function closeModalTab() {
-  document.getElementById('modal-tab-info').style.display = '';
-  document.getElementById('modal-tab-sources').style.display = 'none';
-}
-
-// ══════════════════════════════════════════════════════════════
-// SEARCH
-// ══════════════════════════════════════════════════════════════
-let searchTimeout = null;
-
+// ══ SEARCH ══
+let searchTimeout=null;
 function handleSearch(val) {
   clearTimeout(searchTimeout);
-  if (!val.trim()) { closeSearch(); return; }
-  searchTimeout = setTimeout(() => doSearch(val), 250);
+  if(!val.trim()){closeSearch();return;}
+  searchTimeout=setTimeout(()=>doSearch(val),250);
 }
-
 function doSearch(val) {
-  const overlay = document.getElementById('search-overlay');
-  overlay.classList.add('open');
-  const query = val.toLowerCase();
-  const results = MOVIES.filter(m =>
-    m.title.toLowerCase().includes(query) ||
-    m.genre.some(g => g.includes(query)) ||
-    m.year.toString().includes(query)
-  );
-
-  document.getElementById('search-title').innerHTML =
-    `${results.length} résultat${results.length > 1 ? 's' : ''} pour <span>"${val}"</span>`;
-
-  const grid = document.getElementById('search-results-grid');
-  grid.innerHTML = '';
-  const empty = document.getElementById('search-empty');
-
-  if (results.length === 0) {
-    empty.style.display = '';
-    grid.style.display = 'none';
-  } else {
-    empty.style.display = 'none';
-    grid.style.display = '';
-    results.forEach(m => grid.appendChild(buildMovieCard(m)));
-  }
+  document.getElementById('search-overlay').classList.add('open');
+  const q=val.toLowerCase();
+  const results=MOVIES.filter(m=>m.title.toLowerCase().includes(q)||m.genre.some(g=>g.includes(q))||m.year.toString().includes(q));
+  document.getElementById('search-title').innerHTML=`${results.length} résultat${results.length>1?'s':''} pour <span>"${val}"</span>`;
+  const grid=document.getElementById('search-results-grid'); grid.innerHTML='';
+  const empty=document.getElementById('search-empty');
+  if(results.length===0){empty.style.display='';grid.style.display='none';}
+  else{empty.style.display='none';grid.style.display='';results.forEach(m=>grid.appendChild(buildMovieCard(m)));}
 }
+function closeSearch() { document.getElementById('search-overlay').classList.remove('open'); document.getElementById('search-input').value=''; }
 
-function closeSearch() {
-  document.getElementById('search-overlay').classList.remove('open');
-  document.getElementById('search-input').value = '';
-}
+// ══ MISC ══
+function showRandom() { const m=MOVIES[Math.floor(Math.random()*MOVIES.length)]; openPlayer(m.id); showToast(`🎲 Film surprise: ${m.title}`,'success'); }
+function showHome() { activeCategory='all'; buildCategoryPills(); buildSections(); window.scrollTo({top:0,behavior:'smooth'}); }
+function shareMovie(id) { const m=MOVIES.find(x=>x.id===id); if(!m) return; if(navigator.share){navigator.share({title:m.title,text:`Regarde ${m.title} sur CineStream !`,url:window.location.href});}else{navigator.clipboard?.writeText(window.location.href);showToast('📋 Lien copié !','success');} }
+function showToast(msg,type='') { const c=document.getElementById('toast-container'); const t=document.createElement('div'); t.className=`toast ${type}`; t.textContent=msg; c.appendChild(t); setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300);},3000); }
 
-// ══════════════════════════════════════════════════════════════
-// MISC
-// ══════════════════════════════════════════════════════════════
-function showRandom() {
-  const m = MOVIES[Math.floor(Math.random() * MOVIES.length)];
-  openPlayer(m.id);
-  showToast(`🎲 Film surprise: ${m.title}`, 'success');
-}
-
-function showHome() {
-  activeCategory = 'all';
-  buildCategoryPills();
-  buildSections();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function shareMovie(id) {
-  const m = MOVIES.find(x => x.id === id);
-  if (!m) return;
-  if (navigator.share) {
-    navigator.share({ title: m.title, text: `Regarde ${m.title} sur CineStream !`, url: window.location.href });
-  } else {
-    navigator.clipboard?.writeText(window.location.href);
-    showToast('📋 Lien copié !', 'success');
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// TOAST
-// ══════════════════════════════════════════════════════════════
-function showToast(msg, type = '') {
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.textContent = msg;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity .3s';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
-
-// ══════════════════════════════════════════════════════════════
-// KEYBOARD SHORTCUTS
-// ══════════════════════════════════════════════════════════════
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    closeModal();
-    closeSearch();
-  }
-  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
-    e.preventDefault();
-    document.getElementById('search-input').focus();
-  }
+// ══ KEYBOARD ══
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeModal();closeSearch();closeCustomSource();}
+  if(e.key==='/'&&document.activeElement.tagName!=='INPUT'){e.preventDefault();document.getElementById('search-input').focus();}
 });
+document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+document.getElementById('custom-source-modal').addEventListener('click',function(e){if(e.target===this)closeCustomSource();});
+window.addEventListener('scroll',()=>{document.getElementById('scroll-top').classList.toggle('show',window.scrollY>600);});
 
-// Close modal on overlay click
-document.getElementById('modal-overlay').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
-
-// Scroll top button
-window.addEventListener('scroll', () => {
-  const btn = document.getElementById('scroll-top');
-  btn.classList.toggle('show', window.scrollY > 600);
-});
-
-// ══════════════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════════════
-initHero();
-buildCategoryPills();
-buildSections();
+// ══ INIT ══
+initHero(); buildCategoryPills(); buildSections();
 </script>
 </body>
 </html>
